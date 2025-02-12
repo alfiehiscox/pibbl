@@ -1,5 +1,6 @@
 package main
 
+import "core:log"
 import "core:testing"
 
 @(test)
@@ -236,11 +237,143 @@ test_execute_dec_r16 :: proc(t: ^testing.T) {
 test_execute_add_hl_r16 :: proc(t: ^testing.T) {
 	e: Emulator
 	e.pc = 1
+	e.af = 0
 
 	cycles: int
 	err: Emulator_Error
 
+	// ===== bc ======
+	// With no overflow
+	e.hl = 0x0010
+	e.bc = 0x000F
+	f := u8(e.af & 0x00FF)
 	cycles, err = execute_add_hl_r16(&e, 0b00001001)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, u8(e.af & 0x00FF) == f, "f-before=%b, f-after=%b", f, u8(e.af & 0x00FF)) // no change
+	testing.expect(t, e.hl == 0x001F)
+
+	// With half overflow
+	e.hl = 0x0FF1
+	e.bc = 0x000F
+	e.af = 0
+	f = u8(e.af & 0x00FF)
+	cycles, err = execute_add_hl_r16(&e, 0b00001001)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, u8(e.af & 0x00FF) == 0x20)
+	testing.expect(t, e.hl == 0x1000)
+
+	// With full overflow + half overflow
+	e.hl = 0x8FFF
+	e.bc = 0x8001
+	e.af = 0
+	f = u8(e.af & 0x00FF)
+	cycles, err = execute_add_hl_r16(&e, 0b00001001)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, u8(e.af & 0x00FF) == 0x30)
+	testing.expect(t, e.hl == 0x1000)
+
+	// ===== de ======
+	//With no overflow
+	e.hl = 0x0010
+	e.de = 0x000F
+	e.af = 0
+	f = u8(e.af & 0x00FF)
+	cycles, err = execute_add_hl_r16(&e, 0b00011001)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, u8(e.af & 0x00FF) == f) // no change
+	testing.expect(t, e.hl == 0x001F)
+
+	// With half overflow
+	e.hl = 0x0FF1
+	e.de = 0x000F
+	e.af = 0
+	f = u8(e.af & 0x00FF)
+	cycles, err = execute_add_hl_r16(&e, 0b00011001)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, u8(e.af & 0x00FF) == 0x20)
+	testing.expect(t, e.hl == 0x1000)
+
+	// With full overflow + half overflow
+	e.hl = 0x8FFF
+	e.de = 0x8001
+	e.af = 0
+	f = u8(e.af & 0x00FF)
+	cycles, err = execute_add_hl_r16(&e, 0b00011001)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, u8(e.af & 0x00FF) == 0x30)
+	testing.expect(t, e.hl == 0x1000)
+
+	//// ===== hl ======
+	//// TODO(alfie)
+
+	// ===== sp ======
+	// With no overflow
+	e.hl = 0x0010
+	e.sp = 0x000F
+	e.af = 0
+	f = u8(e.af & 0x00FF)
+	cycles, err = execute_add_hl_r16(&e, 0b00111001)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, u8(e.af & 0x00FF) == f) // no change
+	testing.expect(t, e.hl == 0x001F)
+
+	// With half overflow
+	e.hl = 0x0FF1
+	e.sp = 0x000F
+	e.af = 0
+	f = u8(e.af & 0x00FF)
+	cycles, err = execute_add_hl_r16(&e, 0b00111001)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, u8(e.af & 0x00FF) == 0x20)
+	testing.expect(t, e.hl == 0x1000)
+
+	// With full overflow + half overflow
+	e.hl = 0x8FFF
+	e.sp = 0x8001
+	e.af = 0
+	f = u8(e.af & 0x00FF)
+	cycles, err = execute_add_hl_r16(&e, 0b00111001)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, u8(e.af & 0x00FF) == 0x30) // no change
+	testing.expect(t, e.hl == 0x1000)
+}
+
+//@(test)
+test_execute_inc_r8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// TODO(alfie): Need to figure out overflows and 
+}
+
+//@(test)
+test_execute_dec_r8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
 
 	// TODO(alfie): Need to figure out overflows and 
 }

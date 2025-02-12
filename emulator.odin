@@ -1,5 +1,6 @@
 package main
 
+import "base:intrinsics"
 import "core:encoding/endian"
 import "core:log"
 
@@ -108,6 +109,19 @@ After this we can optionally pause execution to ensure a 4.19MHz CPU rate, and
 then start again.
 **/
 
+/** 
+Carries: 
+
+The ALU has a half and full carry bit flag stored regirster f. Bit are refereneced 
+from 0. Say a u8 has bits 0-7 and a u16 has bits 0-15
+
+- On 8 bit calculation the half flag is set if there is a rollover from bit 3 to 4 
+- On 8 bit calcuations the full flag is set if there is a rollover from bit 7 and in odin we wrap arround for unsigned ints.
+- On 16 bit calculations the half flag is set if there is a rollover from bit 3 to 4 in the highest register. This basically means when a rollover from bit 11 to 12. 
+- On 16 bit calculations the full flag is set if there is a rollover from bit 15 and in odin we wrap arround for unsighed ints.
+
+**/
+
 execute :: proc(e: ^Emulator) -> Emulator_Error {
 	e.running = true
 
@@ -160,9 +174,13 @@ execute_block_0_instruction :: proc(
 	case opcode & 0x0F == 0x03:
 		return execute_inc_r16(e, opcode) // inc r16
 	case opcode & 0x0F == 0x0B:
-		return execute_inc_r16(e, opcode) // dec r16
+		return execute_dec_r16(e, opcode) // dec r16
 	case opcode & 0x0F == 0x09:
-
+		return execute_add_hl_r16(e, opcode) // add hl, [r16]
+	case opcode & 0x07 == 0x04:
+		return execute_inc_r8(e, opcode) // inc r8
+	case opcode & 0x07 == 0x05:
+		return execute_dec_r8(e, opcode) // dec r8
 	}
 
 	unimplemented()
@@ -210,7 +228,6 @@ execute_ld_r16mem_a :: #force_inline proc(
 	case 0:
 		// ld [bc], a
 		a := byte((e.af & 0xFF00) >> 8)
-		log.infof("a=%X", a)
 		err = write(e, e.bc, a)
 	case 1:
 		// ld [de], a
@@ -329,7 +346,63 @@ execute_dec_r16 :: #force_inline proc(
 	return 2, nil
 }
 
-execute_add_hl_r16 :: proc(e: ^Emulator, opcode: byte) -> (cycles: int, err: Emulator_Error) {
+execute_add_hl_r16 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+
+	f := 0
+
+	switch (opcode & 0x30) >> 4 {
+	case 0:
+		// add hl, bc
+		if will_add_overflow(e.hl, e.bc) do f |= 0x10
+		if will_add_h_overflow(e.hl, e.bc) do f |= 0x20
+		e.hl += e.bc
+	case 1:
+		// add hl, de
+		if will_add_overflow(e.hl, e.de) do f |= 0x10
+		if will_add_h_overflow(e.hl, e.de) do f |= 0x20
+		e.hl += e.de
+	case 2:
+		// add hl, hl
+		if will_add_overflow(e.hl, e.hl) do f |= 0x10
+		if will_add_h_overflow(e.hl, e.hl) do f |= 0x20
+		e.hl += e.hl
+	case 3:
+		// add hl, sp
+		if will_add_overflow(e.hl, e.sp) do f |= 0x10
+		if will_add_h_overflow(e.hl, e.sp) do f |= 0x20
+		e.hl += e.sp
+	case:
+		return -1, .Instruction_Not_Parsed
+	}
+
+	e.af = (e.af & 0xFF00) | u16(f)
+
+	return 2, nil
+}
+
+execute_inc_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_dec_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
 	unimplemented()
 }
 
@@ -339,7 +412,9 @@ execute_block_1_instruction :: proc(
 ) -> (
 	cycles: int,
 	err: Emulator_Error,
-) {unimplemented()}
+) {
+	unimplemented()
+}
 
 execute_block_2_instruction :: proc(
 	e: ^Emulator,
@@ -347,7 +422,9 @@ execute_block_2_instruction :: proc(
 ) -> (
 	cycles: int,
 	err: Emulator_Error,
-) {unimplemented()}
+) {
+	unimplemented()
+}
 
 execute_block_3_instruction :: proc(
 	e: ^Emulator,
@@ -355,7 +432,9 @@ execute_block_3_instruction :: proc(
 ) -> (
 	cycles: int,
 	err: Emulator_Error,
-) {unimplemented()}
+) {
+	unimplemented()
+}
 
 
 tick_peripherals :: proc(e: ^Emulator, mcycles: int) -> Emulator_Error {
@@ -419,10 +498,8 @@ access :: proc(e: ^Emulator, addr: u16) -> (byte, Emulator_Error) {
 write :: proc(e: ^Emulator, addr: u16, val: byte) -> Emulator_Error {
 	switch {
 	case addr >= 0x0000 && addr <= 0x3FFF:
-		// e.rom0[addr] = val
 		return .Invalid_Write
 	case addr >= 0x4000 && addr <= 0x7FFF:
-		//e.romN[addr - 0x4000] = val // TODO(alfie) - memory banking 
 		return .Invalid_Write
 	case addr >= 0x8000 && addr <= 0x9FFF:
 		e.vram[addr - 0x8000] = val
@@ -452,3 +529,24 @@ stack_push :: proc(e: ^Emulator, val: byte) -> Emulator_Error {
 stack_pop :: proc(e: ^Emulator) -> (byte, Emulator_Error) {
 	unimplemented()
 }
+
+will_add_overflow :: proc(a, b: $T) -> bool where intrinsics.type_is_integer(T) {
+	return a + b < a
+}
+
+will_add_h_overflow :: proc {
+	will_add_h_overflow_u8,
+	will_add_h_overflow_u16,
+}
+
+will_add_h_overflow_u8 :: proc(a, b: u8) -> bool {
+	return (a & 0xF) + (b & 0xF) > 0xF
+}
+
+will_add_h_overflow_u16 :: proc(a, b: u16) -> bool {
+	return (a & 0x0FFF) + (b & 0x0FFF) > 0x0FFF
+}
+
+// a = 0b 0010 1111 
+// b = 0b 0010 0001
+// + = 0b 0011 0000
