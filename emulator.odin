@@ -6,6 +6,11 @@ import "core:log"
 
 MAX_ROM :: 16384
 
+FLAG_ZERO :: 0x80
+FLAG_HALF_CARRY :: 0x20
+FLAG_FULL_CARRY :: 0x10
+FLAG_SUB :: 0x40
+
 Emulator :: struct {
 	// Registers
 	af:      u16,
@@ -359,23 +364,23 @@ execute_add_hl_r16 :: #force_inline proc(
 	switch (opcode & 0x30) >> 4 {
 	case 0:
 		// add hl, bc
-		if will_add_overflow(e.hl, e.bc) do f |= 0x10
-		if will_add_h_overflow(e.hl, e.bc) do f |= 0x20
+		if will_add_overflow(e.hl, e.bc) do f |= FLAG_FULL_CARRY
+		if will_add_h_overflow(e.hl, e.bc) do f |= FLAG_HALF_CARRY
 		e.hl += e.bc
 	case 1:
 		// add hl, de
-		if will_add_overflow(e.hl, e.de) do f |= 0x10
-		if will_add_h_overflow(e.hl, e.de) do f |= 0x20
+		if will_add_overflow(e.hl, e.de) do f |= FLAG_FULL_CARRY
+		if will_add_h_overflow(e.hl, e.de) do f |= FLAG_HALF_CARRY
 		e.hl += e.de
 	case 2:
 		// add hl, hl
-		if will_add_overflow(e.hl, e.hl) do f |= 0x10
-		if will_add_h_overflow(e.hl, e.hl) do f |= 0x20
+		if will_add_overflow(e.hl, e.hl) do f |= FLAG_FULL_CARRY
+		if will_add_h_overflow(e.hl, e.hl) do f |= FLAG_HALF_CARRY
 		e.hl += e.hl
 	case 3:
 		// add hl, sp
-		if will_add_overflow(e.hl, e.sp) do f |= 0x10
-		if will_add_h_overflow(e.hl, e.sp) do f |= 0x20
+		if will_add_overflow(e.hl, e.sp) do f |= FLAG_FULL_CARRY
+		if will_add_h_overflow(e.hl, e.sp) do f |= FLAG_HALF_CARRY
 		e.hl += e.sp
 	case:
 		return -1, .Instruction_Not_Parsed
@@ -393,7 +398,67 @@ execute_inc_r8 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+
+	f := 0
+
+	switch (opcode & 0x38) >> 3 {
+	case 0:
+		// inc b 
+		b := u8((e.bc & 0xFF00) >> 8)
+		if will_add_h_overflow(b, 1) do f |= FLAG_HALF_CARRY
+		if b + 1 == 0 do f |= FLAG_ZERO
+		e.bc = u16(b + 1) << 8 | (e.bc & 0x00FF)
+	case 1:
+		// inc c
+		c := u8(e.bc)
+		if will_add_h_overflow(c, 1) do f |= FLAG_HALF_CARRY
+		if c + 1 == 0 do f |= FLAG_ZERO
+		e.bc = (e.bc & 0xFF00) | u16(c + 1)
+	case 2:
+		// inc d
+		d := u8((e.de & 0xFF00) >> 8)
+		if will_add_h_overflow(d, 1) do f |= FLAG_HALF_CARRY
+		if d + 1 == 0 do f |= FLAG_ZERO
+		e.de = u16(d + 1) << 8 | (e.de & 0x00FF)
+	case 3:
+		// inc e
+		er := u8(e.de)
+		if will_add_h_overflow(er, 1) do f |= FLAG_HALF_CARRY
+		if er + 1 == 0 do f |= FLAG_ZERO
+		e.de = (e.de & 0xFF00) | u16(er + 1)
+	case 4:
+		// inc h 
+		h := u8((e.hl & 0xFF00) >> 8)
+		if will_add_h_overflow(h, 1) do f |= FLAG_HALF_CARRY
+		if h + 1 == 0 do f |= FLAG_ZERO
+		e.hl = u16(h + 1) << 8 | (e.hl & 0x00FF)
+	case 5:
+		// inc l
+		l := u8(e.hl)
+		if will_add_h_overflow(l, 1) do f |= FLAG_HALF_CARRY
+		if l + 1 == 0 do f |= FLAG_ZERO
+		e.hl = (e.hl & 0xFF00) | u16(l + 1)
+	case 6:
+		// inc [hl]
+		v := access(e, e.hl) or_return
+		if will_add_h_overflow(v, 1) do f |= FLAG_HALF_CARRY
+		if v + 1 == 0 do f |= FLAG_ZERO
+		write(e, e.hl, v + 1) or_return
+		e.af = (e.af & 0xFF00) | u16(f)
+		return 3, nil
+	case 7:
+		// inc a
+		a := u8((e.af & 0xFF00) >> 8)
+		if will_add_h_overflow(a, 1) do f |= FLAG_HALF_CARRY
+		if a + 1 == 0 do f |= FLAG_ZERO
+		e.hl = u16(a + 1) << 8 | (e.af & 0x00FF)
+	case:
+		return -1, .Instruction_Not_Parsed
+	}
+
+	e.af = (e.af & 0xFF00) | u16(f)
+
+	return 1, nil
 }
 
 execute_dec_r8 :: #force_inline proc(
@@ -403,7 +468,68 @@ execute_dec_r8 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	f := 0
+
+	switch (opcode & 0x38) >> 3 {
+	case 0:
+		// dec b 
+		b := u8((e.bc & 0xFF00) >> 8)
+		if will_sub_h_underflow_u8(b, 1) do f |= FLAG_HALF_CARRY
+		if b - 1 == 0 do f |= FLAG_ZERO
+		e.bc = u16(b - 1) << 8 | (e.bc & 0x00FF)
+	case 1:
+		// dec c
+		c := u8(e.bc)
+		if will_sub_h_underflow_u8(c, 1) do f |= FLAG_HALF_CARRY
+		if c - 1 == 0 do f |= FLAG_ZERO
+		e.bc = (e.bc & 0xFF00) | u16(c - 1)
+	case 2:
+		// dec d
+		d := u8((e.de & 0xFF00) >> 8)
+		if will_sub_h_underflow_u8(d, 1) do f |= FLAG_HALF_CARRY
+		if d - 1 == 0 do f |= FLAG_ZERO
+		e.de = u16(d - 1) << 8 | (e.de & 0x00FF)
+	case 3:
+		// dec e
+		er := u8(e.de)
+		if will_sub_h_underflow_u8(er, 1) do f |= FLAG_HALF_CARRY
+		if er - 1 == 0 do f |= FLAG_ZERO
+		e.de = (e.de & 0xFF00) | u16(er - 1)
+	case 4:
+		// dec h 
+		h := u8((e.hl & 0xFF00) >> 8)
+		if will_sub_h_underflow_u8(h, 1) do f |= FLAG_HALF_CARRY
+		if h - 1 == 0 do f |= FLAG_ZERO
+		e.hl = u16(h - 1) << 8 | (e.hl & 0x00FF)
+	case 5:
+		// dec l
+		l := u8(e.hl)
+		if will_sub_h_underflow_u8(l, 1) do f |= FLAG_HALF_CARRY
+		if l - 1 == 0 do f |= FLAG_ZERO
+		e.hl = (e.hl & 0xFF00) | u16(l - 1)
+	case 6:
+		// dec [hl]
+		v := access(e, e.hl) or_return
+		if will_sub_h_underflow_u8(v, 1) do f |= FLAG_HALF_CARRY
+		if v - 1 == 0 do f |= FLAG_ZERO
+		f |= FLAG_SUB
+		write(e, e.hl, v - 1) or_return
+		e.af = (e.af & 0xFF00) | u16(f)
+		return 3, nil
+	case 7:
+		// dec a
+		a := u8((e.af & 0xFF00) >> 8)
+		if will_sub_h_underflow_u8(a, 1) do f |= FLAG_HALF_CARRY
+		if a - 1 == 0 do f |= FLAG_ZERO
+		e.af = u16(a - 1) << 8 | (e.af & 0x00FF)
+	case:
+		return -1, .Instruction_Not_Parsed
+	}
+
+	f |= FLAG_SUB
+	e.af = (e.af & 0xFF00) | u16(f)
+
+	return 1, nil
 }
 
 execute_block_1_instruction :: proc(
@@ -540,13 +666,17 @@ will_add_h_overflow :: proc {
 }
 
 will_add_h_overflow_u8 :: proc(a, b: u8) -> bool {
-	return (a & 0xF) + (b & 0xF) > 0xF
+	return (a & 0x0F) + (b & 0x0F) > 0x0F
 }
 
 will_add_h_overflow_u16 :: proc(a, b: u16) -> bool {
 	return (a & 0x0FFF) + (b & 0x0FFF) > 0x0FFF
 }
 
-// a = 0b 0010 1111 
-// b = 0b 0010 0001
-// + = 0b 0011 0000
+will_sub_underflow_u8 :: proc(a, b: u8) -> bool {
+	return a < b
+}
+
+will_sub_h_underflow_u8 :: proc(a, b: u8) -> bool {
+	return (a & 0x0F) < (b & 0x0F)
+}

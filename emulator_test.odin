@@ -237,7 +237,6 @@ test_execute_dec_r16 :: proc(t: ^testing.T) {
 test_execute_add_hl_r16 :: proc(t: ^testing.T) {
 	e: Emulator
 	e.pc = 1
-	e.af = 0
 
 	cycles: int
 	err: Emulator_Error
@@ -246,6 +245,7 @@ test_execute_add_hl_r16 :: proc(t: ^testing.T) {
 	// With no overflow
 	e.hl = 0x0010
 	e.bc = 0x000F
+	e.af = 0xAB00
 	f := u8(e.af & 0x00FF)
 	cycles, err = execute_add_hl_r16(&e, 0b00001001)
 	testing.expectf(t, err == nil, "err=%s", err)
@@ -253,36 +253,39 @@ test_execute_add_hl_r16 :: proc(t: ^testing.T) {
 	testing.expect(t, cycles == 2)
 	testing.expectf(t, u8(e.af & 0x00FF) == f, "f-before=%b, f-after=%b", f, u8(e.af & 0x00FF)) // no change
 	testing.expect(t, e.hl == 0x001F)
+	testing.expect(t, (e.af & 0xFF00) >> 8 == 0xAB)
 
 	// With half overflow
 	e.hl = 0x0FF1
 	e.bc = 0x000F
-	e.af = 0
+	e.af = 0xAB00
 	f = u8(e.af & 0x00FF)
 	cycles, err = execute_add_hl_r16(&e, 0b00001001)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, e.pc == 1)
 	testing.expect(t, cycles == 2)
-	testing.expect(t, u8(e.af & 0x00FF) == 0x20)
+	testing.expect(t, u8(e.af & 0x00FF) == FLAG_HALF_CARRY)
 	testing.expect(t, e.hl == 0x1000)
+	testing.expect(t, (e.af & 0xFF00) >> 8 == 0xAB)
 
 	// With full overflow + half overflow
 	e.hl = 0x8FFF
 	e.bc = 0x8001
-	e.af = 0
+	e.af = 0xAB00
 	f = u8(e.af & 0x00FF)
 	cycles, err = execute_add_hl_r16(&e, 0b00001001)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, e.pc == 1)
 	testing.expect(t, cycles == 2)
-	testing.expect(t, u8(e.af & 0x00FF) == 0x30)
+	testing.expect(t, u8(e.af) == FLAG_FULL_CARRY | FLAG_HALF_CARRY)
 	testing.expect(t, e.hl == 0x1000)
+	testing.expect(t, (e.af & 0xFF00) >> 8 == 0xAB)
 
 	// ===== de ======
 	//With no overflow
 	e.hl = 0x0010
 	e.de = 0x000F
-	e.af = 0
+	e.af = 0xAB00
 	f = u8(e.af & 0x00FF)
 	cycles, err = execute_add_hl_r16(&e, 0b00011001)
 	testing.expectf(t, err == nil, "err=%s", err)
@@ -290,39 +293,42 @@ test_execute_add_hl_r16 :: proc(t: ^testing.T) {
 	testing.expect(t, cycles == 2)
 	testing.expect(t, u8(e.af & 0x00FF) == f) // no change
 	testing.expect(t, e.hl == 0x001F)
+	testing.expect(t, (e.af & 0xFF00) >> 8 == 0xAB)
 
 	// With half overflow
 	e.hl = 0x0FF1
 	e.de = 0x000F
-	e.af = 0
+	e.af = 0xAB00
 	f = u8(e.af & 0x00FF)
 	cycles, err = execute_add_hl_r16(&e, 0b00011001)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, e.pc == 1)
 	testing.expect(t, cycles == 2)
-	testing.expect(t, u8(e.af & 0x00FF) == 0x20)
+	testing.expect(t, u8(e.af & 0x00FF) == FLAG_HALF_CARRY)
 	testing.expect(t, e.hl == 0x1000)
+	testing.expect(t, (e.af & 0xFF00) >> 8 == 0xAB)
 
 	// With full overflow + half overflow
 	e.hl = 0x8FFF
 	e.de = 0x8001
-	e.af = 0
+	e.af = 0xAB00
 	f = u8(e.af & 0x00FF)
 	cycles, err = execute_add_hl_r16(&e, 0b00011001)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, e.pc == 1)
 	testing.expect(t, cycles == 2)
-	testing.expect(t, u8(e.af & 0x00FF) == 0x30)
+	testing.expect(t, u8(e.af & 0x00FF) == FLAG_FULL_CARRY | FLAG_HALF_CARRY)
 	testing.expect(t, e.hl == 0x1000)
+	testing.expect(t, (e.af & 0xFF00) >> 8 == 0xAB)
 
 	//// ===== hl ======
-	//// TODO(alfie)
+	//// TODO: (alfie)
 
 	// ===== sp ======
 	// With no overflow
 	e.hl = 0x0010
 	e.sp = 0x000F
-	e.af = 0
+	e.af = 0xAB00
 	f = u8(e.af & 0x00FF)
 	cycles, err = execute_add_hl_r16(&e, 0b00111001)
 	testing.expectf(t, err == nil, "err=%s", err)
@@ -330,33 +336,36 @@ test_execute_add_hl_r16 :: proc(t: ^testing.T) {
 	testing.expect(t, cycles == 2)
 	testing.expect(t, u8(e.af & 0x00FF) == f) // no change
 	testing.expect(t, e.hl == 0x001F)
+	testing.expect(t, (e.af & 0xFF00) >> 8 == 0xAB)
 
 	// With half overflow
 	e.hl = 0x0FF1
 	e.sp = 0x000F
-	e.af = 0
+	e.af = 0xAB00
 	f = u8(e.af & 0x00FF)
 	cycles, err = execute_add_hl_r16(&e, 0b00111001)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, e.pc == 1)
 	testing.expect(t, cycles == 2)
-	testing.expect(t, u8(e.af & 0x00FF) == 0x20)
+	testing.expect(t, u8(e.af & 0x00FF) == FLAG_HALF_CARRY)
 	testing.expect(t, e.hl == 0x1000)
+	testing.expect(t, (e.af & 0xFF00) >> 8 == 0xAB)
 
 	// With full overflow + half overflow
 	e.hl = 0x8FFF
 	e.sp = 0x8001
-	e.af = 0
+	e.af = 0xAB00
 	f = u8(e.af & 0x00FF)
 	cycles, err = execute_add_hl_r16(&e, 0b00111001)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, e.pc == 1)
 	testing.expect(t, cycles == 2)
-	testing.expect(t, u8(e.af & 0x00FF) == 0x30) // no change
+	testing.expect(t, u8(e.af & 0x00FF) == FLAG_FULL_CARRY | FLAG_HALF_CARRY)
 	testing.expect(t, e.hl == 0x1000)
+	testing.expect(t, (e.af & 0xFF00) >> 8 == 0xAB)
 }
 
-//@(test)
+@(test)
 test_execute_inc_r8 :: proc(t: ^testing.T) {
 	e: Emulator
 	e.pc = 1
@@ -364,10 +373,39 @@ test_execute_inc_r8 :: proc(t: ^testing.T) {
 	cycles: int
 	err: Emulator_Error
 
-	// TODO(alfie): Need to figure out overflows and 
+	// b
+	e.bc = 0xFF00
+	e.af = 0
+	cycles, err = execute_inc_r8(&e, 0b00000100)
+	log.infof("e.af = %b", e.af)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, e.bc == 0x00)
+	testing.expect(t, byte(e.af) == FLAG_ZERO | FLAG_HALF_CARRY) // set zero bit
+
+	// c 
+	e.bc = 0x000F
+	e.af = 0
+	cycles, err = execute_inc_r8(&e, 0b00001100)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, e.bc == 0x0010)
+	testing.expect(t, byte(e.af) == FLAG_HALF_CARRY) // half carry
+
+	// inc [hl] is different 
+	e.wram[0x000F] = 0x80
+	e.hl = 0xC00F
+	cycles, err = execute_inc_r8(&e, 0b00110100)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, e.wram[0x000F] == 0x81)
+	testing.expect(t, byte(e.af) == 0)
 }
 
-//@(test)
+@(test)
 test_execute_dec_r8 :: proc(t: ^testing.T) {
 	e: Emulator
 	e.pc = 1
@@ -375,5 +413,34 @@ test_execute_dec_r8 :: proc(t: ^testing.T) {
 	cycles: int
 	err: Emulator_Error
 
-	// TODO(alfie): Need to figure out overflows and 
+	// d 
+	e.de = 0xFF00
+	e.af = 0
+	cycles, err = execute_dec_r8(&e, 0b00010101)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, e.de == 0xFE00)
+	testing.expect(t, byte(e.af) == FLAG_SUB)
+
+	// e
+	e.de = 0x0001
+	e.af = 0
+	cycles, err = execute_dec_r8(&e, 0b00011101)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, e.de == 0)
+	testing.expect(t, byte(e.af) == FLAG_SUB | FLAG_ZERO)
+
+	// dec [hl]
+	e.wram[0x000F] = 0x10
+	e.hl = 0xC00F
+	e.af = 0
+	cycles, err = execute_dec_r8(&e, 0b00110101)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 1)
+	testing.expect(t, e.wram[0x000F] == 0x0F)
+	testing.expect(t, byte(e.af) == FLAG_SUB | FLAG_HALF_CARRY)
 }
