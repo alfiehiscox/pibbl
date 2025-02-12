@@ -186,6 +186,8 @@ execute_block_0_instruction :: proc(
 		return execute_inc_r8(e, opcode) // inc r8
 	case opcode & 0x07 == 0x05:
 		return execute_dec_r8(e, opcode) // dec r8
+	case opcode & 0x07 == 0x06:
+		return execute_ld_r8_imm8(e, opcode) // ld r8, imm8 	
 	}
 
 	unimplemented()
@@ -530,6 +532,62 @@ execute_dec_r8 :: #force_inline proc(
 	e.af = (e.af & 0xFF00) | u16(f)
 
 	return 1, nil
+}
+
+execute_ld_r8_imm8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	switch (opcode & 0x38) >> 3 {
+	case 0:
+		// ld b,imm8
+		next := access(e, e.pc) or_return
+		e.pc += 1
+		e.bc = (u16(next) << 8) | (e.bc & 0x00FF)
+	case 1:
+		// ld c,imm8
+		next := access(e, e.pc) or_return
+		e.pc += 1
+		e.bc = (e.bc & 0xFF00) | u16(next)
+	case 2:
+		// ld d,imm8
+		next := access(e, e.pc) or_return
+		e.pc += 1
+		e.de = (u16(next) << 8) | (e.de & 0x00FF)
+	case 3:
+		// ld e,imm8
+		next := access(e, e.pc) or_return
+		e.pc += 1
+		e.de = (e.de & 0xFF00) | u16(next)
+	case 4:
+		// ld h,imm8
+		next := access(e, e.pc) or_return
+		e.pc += 1
+		e.hl = (u16(next) << 8) | (e.hl & 0x00FF)
+	case 5:
+		// ld l,imm8
+		next := access(e, e.pc) or_return
+		e.pc += 1
+		e.hl = (e.hl & 0xFF00) | u16(next)
+	case 6:
+		// ld [hl],imm8
+		next := access(e, e.pc) or_return
+		e.pc += 1
+		write(e, e.hl, next) or_return
+		return 3, nil
+	case 7:
+		// ld a,imm8
+		next := access(e, e.pc) or_return
+		e.pc += 1
+		e.af = (u16(next) << 8) | (e.af & 0x00FF)
+	case:
+		return -1, .Instruction_Not_Parsed
+	}
+
+	return 2, nil
 }
 
 execute_block_1_instruction :: proc(

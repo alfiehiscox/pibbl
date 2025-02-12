@@ -377,7 +377,6 @@ test_execute_inc_r8 :: proc(t: ^testing.T) {
 	e.bc = 0xFF00
 	e.af = 0
 	cycles, err = execute_inc_r8(&e, 0b00000100)
-	log.infof("e.af = %b", e.af)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expect(t, e.pc == 1)
@@ -443,4 +442,43 @@ test_execute_dec_r8 :: proc(t: ^testing.T) {
 	testing.expect(t, e.pc == 1)
 	testing.expect(t, e.wram[0x000F] == 0x0F)
 	testing.expect(t, byte(e.af) == FLAG_SUB | FLAG_HALF_CARRY)
+}
+
+@(test)
+test_execute_ld_r8_imm8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// h 
+	e.hl = 0
+	e.rom0[e.pc] = 0xFF
+	cycles, err = execute_ld_r8_imm8(&e, 0b00100110)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.pc == 2)
+	testing.expect(t, e.hl == 0xFF00)
+
+	// l 
+	e.pc = 1
+	e.hl = 0
+	e.rom0[e.pc] = 0xAB
+	cycles, err = execute_ld_r8_imm8(&e, 0b00101110)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.pc == 2)
+	testing.expect(t, e.hl == 0x00AB)
+
+	// ld [hl],imm8
+	e.pc = 1
+	e.rom0[e.pc] = 0xAB
+	e.wram[0x000F] = 0x00
+	e.hl = 0xC00F
+	cycles, err = execute_ld_r8_imm8(&e, 0b00110110)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 2)
+	testing.expect(t, e.wram[0x000F] == 0xAB)
 }
