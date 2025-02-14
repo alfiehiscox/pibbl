@@ -482,3 +482,64 @@ test_execute_ld_r8_imm8 :: proc(t: ^testing.T) {
 	testing.expect(t, e.pc == 2)
 	testing.expect(t, e.wram[0x000F] == 0xAB)
 }
+
+@(test)
+test_execute_rlca :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	e.af = 0x7F00 | FLAG_FULL_CARRY
+
+	// 0x01111111_00010000 
+	// goes to 
+	// 0x11111111_00000000
+
+	cycles, err = execute_rlca(&e, 0x07)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0xFF00, "exp=0xFF00 got=0x%X", e.af)
+
+	// 0x10101010_00000000
+	// goes to 
+	// 0x01010100_00010000
+
+	e.af = 0xAA00
+	cycles, err = execute_rlca(&e, 0x07)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0x5410, "exp=0xFF00 got=0x%X", e.af)
+
+}
+
+@(test)
+test_execute_rrca :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// 0x01111111_00010000 
+	// goes to 
+	// 0x10111111_00010000
+
+	e.af = 0x7F00 | FLAG_FULL_CARRY
+	cycles, err = execute_rrca(&e, 0x0F)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0xBF10, "exp=0xBF10 got=0x%X", e.af)
+
+	// 0x10101011_00000000
+	// goes to 
+	// 0x01010101_00010000
+
+	e.af = 0xAB00
+	cycles, err = execute_rrca(&e, 0x0F)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0x5510, "exp=0x5510 got=0x%X", e.af)
+
+}

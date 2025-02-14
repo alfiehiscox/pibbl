@@ -188,6 +188,8 @@ execute_block_0_instruction :: proc(
 		return execute_dec_r8(e, opcode) // dec r8
 	case opcode & 0x07 == 0x06:
 		return execute_ld_r8_imm8(e, opcode) // ld r8, imm8 	
+	case opcode == 0x07:
+		return execute_rlca(e, opcode) // rlca 
 	}
 
 	unimplemented()
@@ -587,7 +589,51 @@ execute_ld_r8_imm8 :: #force_inline proc(
 		return -1, .Instruction_Not_Parsed
 	}
 
+
 	return 2, nil
+}
+
+execute_rlca :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+
+	a := byte((e.af & 0xFF00) >> 8)
+	f := byte(e.af)
+
+	carry := (f & FLAG_FULL_CARRY) >> 4
+	most := (a & 0x80) >> 7
+
+	new_a := a << 1 | carry
+	new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+
+	e.af = (u16(new_a) << 8) | u16(new_f)
+
+	return 1, nil
+}
+
+execute_rrca :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	a := byte((e.af & 0xFF00) >> 8)
+	f := byte(e.af)
+
+	carry := (f & FLAG_FULL_CARRY) << 3
+	least := a & 0x01
+
+	new_a := a >> 1 | carry
+	new_f := least == 0 ? 0 : FLAG_FULL_CARRY
+
+	e.af = (u16(new_a) << 8) | u16(new_f)
+
+	return 1, nil
 }
 
 execute_block_1_instruction :: proc(
