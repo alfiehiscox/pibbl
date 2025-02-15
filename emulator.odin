@@ -7,9 +7,9 @@ import "core:log"
 MAX_ROM :: 16384
 
 FLAG_ZERO :: 0x80
+FLAG_SUB :: 0x40
 FLAG_HALF_CARRY :: 0x20
 FLAG_FULL_CARRY :: 0x10
-FLAG_SUB :: 0x40
 
 Emulator :: struct {
 	// Registers
@@ -190,9 +190,29 @@ execute_block_0_instruction :: proc(
 		return execute_ld_r8_imm8(e, opcode) // ld r8, imm8 	
 	case opcode == 0x07:
 		return execute_rlca(e, opcode) // rlca 
+	case opcode == 0x0F:
+		return execute_rrca(e, opcode) // rrca
+	case opcode == 0x17:
+		return execute_rla(e, opcode) // rla
+	case opcode == 0x1F:
+		return execute_rra(e, opcode) // rra 
+	case opcode == 0x27:
+		return execute_dda(e, opcode) // dda 
+	case opcode == 0x2F:
+		return execute_cpl(e, opcode) // cpl 
+	case opcode == 0x37:
+		return execute_scf(e, opcode) // scf
+	case opcode == 0x3F:
+		return execute_ccf(e, opcode) // ccf
+	case opcode == 0x18:
+		return execute_jr_imm8(e, opcode) // jr imm8 
+	case opcode == 0x20 || opcode == 0x28 || opcode == 0x30 || opcode == 0x38:
+		return execute_jr_cond_imm8(e, opcode) // jr cond imm8 
+	case opcode == 0x10:
+		return execute_stop(e, opcode) // stop
+	case:
+		return 0, .Instruction_Not_Emulated
 	}
-
-	unimplemented()
 }
 
 execute_ld_r16_imm16 :: #force_inline proc(
@@ -208,7 +228,7 @@ execute_ld_r16_imm16 :: #force_inline proc(
 	e.pc += 2
 
 	val, ok := endian.get_u16(val_bytes, .Little)
-	if !ok do return -1, .Instruction_Not_Parsed
+	if !ok do return 0, .Instruction_Not_Parsed
 
 	switch (opcode & 0x30) >> 4 {
 	case 0:
@@ -220,7 +240,7 @@ execute_ld_r16_imm16 :: #force_inline proc(
 	case 3:
 		e.sp = val // ld sp imm16 
 	case:
-		return -1, .Instruction_Not_Parsed
+		return 0, .Instruction_Not_Parsed
 	}
 
 	return 3, nil
@@ -253,7 +273,7 @@ execute_ld_r16mem_a :: #force_inline proc(
 		err = write(e, e.hl, a)
 		e.hl -= 1
 	case:
-		return -1, .Instruction_Not_Parsed
+		return 0, .Instruction_Not_Parsed
 	}
 
 	return 2, nil
@@ -286,7 +306,7 @@ execute_ld_a_r16mem :: #force_inline proc(
 		e.af = (u16(data) << 8) | (e.af & 0x00FF)
 		e.hl -= 1
 	case:
-		return -1, .Instruction_Not_Parsed
+		return 0, .Instruction_Not_Parsed
 	}
 
 	return 2, nil
@@ -301,7 +321,7 @@ execute_ld_imm16_sp :: #force_inline proc(e: ^Emulator) -> (cycles: int, err: Em
 	e.pc += 2
 
 	addr, ok := endian.get_u16(val_bytes, .Little)
-	if !ok do return -1, .Instruction_Not_Parsed
+	if !ok do return 0, .Instruction_Not_Parsed
 
 	write(e, addr, byte(e.sp & 0x00FF)) or_return
 	write(e, addr + 1, byte(e.sp >> 8)) or_return
@@ -326,7 +346,7 @@ execute_inc_r16 :: #force_inline proc(
 	case 3:
 		e.sp += 1 // inc sp
 	case:
-		return -1, .Instruction_Not_Parsed
+		return 0, .Instruction_Not_Parsed
 	}
 
 	return 2, nil
@@ -349,7 +369,7 @@ execute_dec_r16 :: #force_inline proc(
 	case 3:
 		e.sp -= 1 // inc sp
 	case:
-		return -1, .Instruction_Not_Parsed
+		return 0, .Instruction_Not_Parsed
 	}
 
 	return 2, nil
@@ -387,7 +407,7 @@ execute_add_hl_r16 :: #force_inline proc(
 		if will_add_h_overflow(e.hl, e.sp) do f |= FLAG_HALF_CARRY
 		e.hl += e.sp
 	case:
-		return -1, .Instruction_Not_Parsed
+		return 0, .Instruction_Not_Parsed
 	}
 
 	e.af = (e.af & 0xFF00) | u16(f)
@@ -457,7 +477,7 @@ execute_inc_r8 :: #force_inline proc(
 		if a + 1 == 0 do f |= FLAG_ZERO
 		e.hl = u16(a + 1) << 8 | (e.af & 0x00FF)
 	case:
-		return -1, .Instruction_Not_Parsed
+		return 0, .Instruction_Not_Parsed
 	}
 
 	e.af = (e.af & 0xFF00) | u16(f)
@@ -527,7 +547,7 @@ execute_dec_r8 :: #force_inline proc(
 		if a - 1 == 0 do f |= FLAG_ZERO
 		e.af = u16(a - 1) << 8 | (e.af & 0x00FF)
 	case:
-		return -1, .Instruction_Not_Parsed
+		return 0, .Instruction_Not_Parsed
 	}
 
 	f |= FLAG_SUB
@@ -586,9 +606,8 @@ execute_ld_r8_imm8 :: #force_inline proc(
 		e.pc += 1
 		e.af = (u16(next) << 8) | (e.af & 0x00FF)
 	case:
-		return -1, .Instruction_Not_Parsed
+		return 0, .Instruction_Not_Parsed
 	}
-
 
 	return 2, nil
 }
@@ -602,12 +621,9 @@ execute_rlca :: #force_inline proc(
 ) {
 
 	a := byte((e.af & 0xFF00) >> 8)
-	f := byte(e.af)
-
-	carry := (f & FLAG_FULL_CARRY) >> 4
 	most := (a & 0x80) >> 7
 
-	new_a := a << 1 | carry
+	new_a := a << 1 | most
 	new_f := most == 0 ? 0 : FLAG_FULL_CARRY
 
 	e.af = (u16(new_a) << 8) | u16(new_f)
@@ -623,10 +639,45 @@ execute_rrca :: #force_inline proc(
 	err: Emulator_Error,
 ) {
 	a := byte((e.af & 0xFF00) >> 8)
-	f := byte(e.af)
+	least := a & 0x01 << 7
 
-	carry := (f & FLAG_FULL_CARRY) << 3
-	least := a & 0x01
+	new_a := a >> 1 | least
+	new_f := least == 0 ? 0 : FLAG_FULL_CARRY
+
+	e.af = (u16(new_a) << 8) | u16(new_f)
+
+	return 1, nil
+}
+
+execute_rla :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	a := byte((e.af & 0xFF00) >> 8)
+	most := (a & 0x80) >> 7
+	carry := (byte(e.af) & FLAG_FULL_CARRY) >> 4
+
+	new_a := a << 1 | carry
+	new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+
+	e.af = (u16(new_a) << 8) | u16(new_f)
+
+	return 1, nil
+}
+
+execute_rra :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	a := byte((e.af & 0xFF00) >> 8)
+	least := a & 0x01 << 7
+	carry := (byte(e.af) & FLAG_FULL_CARRY) << 3
 
 	new_a := a >> 1 | carry
 	new_f := least == 0 ? 0 : FLAG_FULL_CARRY
@@ -634,6 +685,145 @@ execute_rrca :: #force_inline proc(
 	e.af = (u16(new_a) << 8) | u16(new_f)
 
 	return 1, nil
+}
+
+execute_dda :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	a := byte((e.af & 0xFF00) >> 8)
+	n := byte(e.af) & FLAG_SUB >> 6
+	h := byte(e.af) & FLAG_HALF_CARRY >> 5
+	c := byte(e.af) & FLAG_FULL_CARRY >> 4
+
+	new_a := a
+	new_f := FLAG_SUB
+
+	if n == 1 {
+		adj: byte = 0
+		if h == 1 do adj += 0x06
+		if c == 1 do adj += 0x60
+
+		if will_sub_underflow_u8(a, adj) {
+			new_f |= FLAG_FULL_CARRY
+		}
+
+		new_a -= adj
+	} else {
+		adj: byte = 0
+		if h == 1 || (a & 0x0F) > 0x09 do adj += 0x06
+		if c == 1 || a > 0x99 {
+			adj += 0x60
+			new_f |= FLAG_FULL_CARRY
+		}
+
+		new_a += adj
+	}
+
+	if new_a == 0 {
+		new_f |= FLAG_ZERO
+	}
+
+	e.af = (u16(new_a) << 8) | u16(new_f)
+	return 1, nil
+}
+
+execute_cpl :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	a := byte((e.af & 0xFF00) >> 8)
+	e.af = u16(~a) << 8 | e.af & 0x00FF
+	return 1, nil
+}
+
+execute_scf :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	e.af = e.af | FLAG_FULL_CARRY
+	return 1, nil
+}
+
+execute_ccf :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	c := (byte(e.af) & FLAG_FULL_CARRY) >> 4
+	if c == 1 {
+		e.af &= ~u16(FLAG_FULL_CARRY)
+	} else {
+		e.af |= FLAG_FULL_CARRY
+	}
+	return 1, nil
+}
+
+execute_jr_imm8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	addr: i8 = auto_cast access(e, e.pc) or_return
+	e.pc += 1
+	e.pc = u16(i16(e.pc) + i16(addr))
+	return 3, nil
+}
+
+execute_jr_cond_imm8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	z := (byte(e.af) & FLAG_ZERO) >> 7
+	c := (byte(e.af) & FLAG_FULL_CARRY) >> 4
+
+	switch (opcode & 0x18) >> 3 {
+	case 0:
+		if z == 0 do return execute_jr_imm8(e, opcode)
+		e.pc += 1
+		return 2, nil
+	case 1:
+		if z == 1 do return execute_jr_imm8(e, opcode)
+		e.pc += 1
+		return 2, nil
+	case 2:
+		if c == 0 do return execute_jr_imm8(e, opcode)
+		e.pc += 1
+		return 2, nil
+	case 3:
+		if c == 1 do return execute_jr_imm8(e, opcode)
+		e.pc += 1
+		return 2, nil
+	case:
+		return 0, .Instruction_Not_Parsed
+	}
+}
+
+// TODO: Look at this because it has some weird quirks
+execute_stop :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
 }
 
 execute_block_1_instruction :: proc(

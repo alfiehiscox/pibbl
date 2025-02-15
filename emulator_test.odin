@@ -495,22 +495,22 @@ test_execute_rlca :: proc(t: ^testing.T) {
 
 	// 0x01111111_00010000 
 	// goes to 
-	// 0x11111111_00000000
+	// 0x11111110_00000000
 
 	cycles, err = execute_rlca(&e, 0x07)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
-	testing.expectf(t, e.af == 0xFF00, "exp=0xFF00 got=0x%X", e.af)
+	testing.expectf(t, e.af == 0xFE00, "exp=0xFE00 got=0x%X", e.af)
 
 	// 0x10101010_00000000
 	// goes to 
-	// 0x01010100_00010000
+	// 0x01010101_00010000
 
 	e.af = 0xAA00
 	cycles, err = execute_rlca(&e, 0x07)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
-	testing.expectf(t, e.af == 0x5410, "exp=0xFF00 got=0x%X", e.af)
+	testing.expectf(t, e.af == 0x5510, "exp=0x5510 got=0x%X", e.af)
 
 }
 
@@ -534,12 +534,326 @@ test_execute_rrca :: proc(t: ^testing.T) {
 
 	// 0x10101011_00000000
 	// goes to 
-	// 0x01010101_00010000
+	// 0x11010101_00010000
 
 	e.af = 0xAB00
 	cycles, err = execute_rrca(&e, 0x0F)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
-	testing.expectf(t, e.af == 0x5510, "exp=0x5510 got=0x%X", e.af)
+	testing.expectf(t, e.af == 0xD510, "exp=0xD510 got=0x%X", e.af)
 
 }
+
+@(test)
+test_execute_rla :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// 0x01111111_00010000 
+	// goes to 
+	// 0x11111111_00000000
+
+	e.af = 0x7F00 | FLAG_FULL_CARRY
+	cycles, err = execute_rla(&e, 0x17)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0xFF00, "exp=0xFF00 got=0x%X", e.af)
+
+	// 0x11101011_00000000
+	// goes to 
+	// 0x11010110_00010000
+
+	e.af = 0xEB00
+	cycles, err = execute_rla(&e, 0x17)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0xD610, "exp=0xD610 got=0x%X", e.af)
+}
+
+@(test)
+test_execute_rra :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// 0x01111111_00010000 
+	// goes to 
+	// 0x10111111_00010000
+
+	e.af = 0x7F00 | FLAG_FULL_CARRY
+	cycles, err = execute_rra(&e, 0x1F)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0xBF10, "exp=0xBF10 got=0x%X", e.af)
+
+	// 0x11101011_00000000
+	// goes to 
+	// 0x01110101_00010000
+
+	e.af = 0xEB00
+	cycles, err = execute_rra(&e, 0x1F)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0x7510, "exp=0x7510 got=0x%X", e.af)
+}
+
+@(test)
+test_execute_dda :: proc(t: ^testing.T) {
+
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// If the subtract flag is set with Half/Full Carry 
+	// Adjustment will be 0x66 therefore a will be zero with no underflow
+	e.af = 0x6600 | FLAG_SUB | FLAG_HALF_CARRY | FLAG_FULL_CARRY
+	cycles, err = execute_dda(&e, 0x27)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		byte((e.af & 0xFF00) >> 8) == 0x00,
+		"exp=0x00 got=%X",
+		byte((e.af & 0xFF00) >> 8),
+	)
+	testing.expect(t, byte(e.af) == FLAG_ZERO | FLAG_SUB, "expected zero flag to be set")
+
+	// If the subtract flag is set with half carry and underflow
+	// Adjustment will be 0x06 therefore a will be 0xFF with carry set
+	e.af = 0x0500 | FLAG_SUB | FLAG_HALF_CARRY
+	cycles, err = execute_dda(&e, 0x27)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		byte((e.af & 0xFF00) >> 8) == 0xFF,
+		"exp=0xFF got=%X",
+		byte((e.af & 0xFF00) >> 8),
+	)
+	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY | FLAG_SUB, "expected carry flag to be set")
+
+	// If the subtract flag is NOT set with Half/Full Carry 
+	// Adjustment will be 0x66 therefore a will 0xCC with no overflow
+	e.af = 0x6600 | FLAG_HALF_CARRY | FLAG_FULL_CARRY
+	cycles, err = execute_dda(&e, 0x27)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		byte((e.af & 0xFF00) >> 8) == 0xCC,
+		"exp=0xCC got=%X",
+		byte((e.af & 0xFF00) >> 8),
+	)
+	testing.expectf(
+		t,
+		byte(e.af) == FLAG_SUB | FLAG_FULL_CARRY,
+		"expected carry flag to be set: flag=%b",
+		byte(e.af),
+	)
+
+	// If the subtract flag is NOT set with half carry and overflow
+	// Adjustment will be 0x66 therefore a will be 0x04 with carry set
+	e.af = 0xFE00 | FLAG_HALF_CARRY
+	cycles, err = execute_dda(&e, 0x27)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		byte((e.af & 0xFF00) >> 8) == 0x64,
+		"exp=0x64 got=%X",
+		byte((e.af & 0xFF00) >> 8),
+	)
+	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY | FLAG_SUB, "expected carry flag to be set")
+}
+
+@(test)
+test_execute_cpl :: proc(t: ^testing.T) {
+
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// 0b10101011_00000000
+	// goes to 
+	// 0x01010100_00000000
+
+	e.af = 0xAB00
+	cycles, err = execute_cpl(&e, 0x2F)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.af == 0x5400)
+
+	// 0b11111111_00000000
+	// goes to 
+	// 0x00000000_00000000
+
+	e.af = 0xFF00
+	cycles, err = execute_cpl(&e, 0x2F)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.af == 0x0000)
+}
+
+@(test)
+test_execute_scf :: proc(t: ^testing.T) {
+
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	e.af = 0x0000
+	cycles, err = execute_scf(&e, 0x37)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.af == FLAG_FULL_CARRY)
+
+	e.af = 0x0010
+	cycles, err = execute_scf(&e, 0x37)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.af == FLAG_FULL_CARRY)
+}
+
+@(test)
+test_execute_ccf :: proc(t: ^testing.T) {
+
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	e.af = 0x0000
+	cycles, err = execute_ccf(&e, 0x3F)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == FLAG_FULL_CARRY, "exp=%x got=%x", FLAG_FULL_CARRY, e.af)
+
+	e.af = 0x0010
+	cycles, err = execute_ccf(&e, 0x3F)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.af == 0)
+}
+
+@(test)
+test_execute_jr_imm8 :: proc(t: ^testing.T) {
+	e: Emulator
+
+	cycles: int
+	err: Emulator_Error
+
+	// Jump positive offset 
+	e.pc = 54
+	e.rom0[e.pc] = 8
+
+	cycles, err = execute_jr_imm8(&e, 0x18)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 63)
+
+	// Jump negative offset
+	e.pc = 68
+	e.rom0[e.pc] = ~u8(24)
+
+	cycles, err = execute_jr_imm8(&e, 0x18)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 44)
+}
+
+@(test)
+test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
+	e: Emulator
+
+	cycles: int
+	err: Emulator_Error
+
+	// test nz - positive 
+	e.af = 0
+	e.pc = 12
+	e.rom0[e.pc] = 24
+	cycles, err = execute_jr_cond_imm8(&e, 0x20)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expectf(t, e.pc == 37, "exp=37 got=%d", e.pc)
+
+	// test nz - negative
+	e.af = FLAG_ZERO
+	e.pc = 12
+	e.rom0[e.pc] = 24
+	cycles, err = execute_jr_cond_imm8(&e, 0x20)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.pc == 13, "exp=13 got=%d", e.pc)
+
+	// test z - positive
+	e.af = FLAG_ZERO
+	e.pc = 12
+	e.rom0[e.pc] = ~u8(6)
+	cycles, err = execute_jr_cond_imm8(&e, 0x28)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expectf(t, e.pc == 6, "exp=6 got=%d", e.pc)
+
+	// test z - negative
+	e.af = 0
+	e.pc = 12
+	e.rom0[e.pc] = 24
+	cycles, err = execute_jr_cond_imm8(&e, 0x28)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.pc == 13, "exp=13 got=%d", e.pc)
+
+	// test nc - positive 
+	e.af = 0
+	e.pc = 12
+	e.rom0[e.pc] = 10
+	cycles, err = execute_jr_cond_imm8(&e, 0x30)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expectf(t, e.pc == 23, "exp=23 got=%d", e.pc)
+
+	// test nc - negative
+	e.af = FLAG_FULL_CARRY
+	e.pc = 12
+	e.rom0[e.pc] = 24
+	cycles, err = execute_jr_cond_imm8(&e, 0x30)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.pc == 13, "exp=13 got=%d", e.pc)
+
+	// test c - positive 
+	e.af = FLAG_FULL_CARRY
+	e.pc = 12
+	e.rom0[e.pc] = 10
+	cycles, err = execute_jr_cond_imm8(&e, 0x38)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expectf(t, e.pc == 23, "exp=23 got=%d", e.pc)
+
+	// test c - negative
+	e.af = 0
+	e.pc = 12
+	e.rom0[e.pc] = 24
+	cycles, err = execute_jr_cond_imm8(&e, 0x38)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.pc == 13, "exp=13 got=%d", e.pc)
+
+}
+
+// TODO: Look at this in more detail 
+@(test)
+test_execute_stop :: proc(t: ^testing.T) {}
