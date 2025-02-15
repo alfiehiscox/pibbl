@@ -89,6 +89,7 @@ Emulator_Error :: enum {
 	Stack_Overflow,
 	Instruction_Not_Emulated,
 	Instruction_Not_Parsed,
+	Unknown_Register,
 }
 
 /**
@@ -827,6 +828,70 @@ execute_stop :: #force_inline proc(
 }
 
 execute_block_1_instruction :: proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+
+	if opcode == 0x77 {
+		return execute_halt(e, opcode)
+	}
+
+	source_reg := opcode & 0x03
+	source: byte
+	switch source_reg {
+	case 0:
+		source = byte((e.bc & 0xFF00) >> 8)
+	case 1:
+		source = byte(e.bc)
+	case 2:
+		source = byte((e.de & 0xFF00) >> 8)
+	case 3:
+		source = byte(e.de)
+	case 4:
+		source = byte((e.hl & 0xFF00) >> 8)
+	case 5:
+		source = byte(e.hl)
+	case 6:
+		source = access(e, e.hl) or_return
+	case 7:
+		source = byte((e.af & 0xFF00) >> 8)
+	case:
+		return 0, .Unknown_Register
+	}
+
+	dest_reg := (opcode & 0x38) >> 3
+	switch dest_reg {
+	case 0:
+		e.bc = (u16(source) << 8) | (e.bc & 0x00FF)
+	case 1:
+		e.bc = (e.bc & 0xFF00) | u16(source)
+	case 2:
+		e.de = (u16(source) << 8) | (e.de & 0x00FF)
+	case 3:
+		e.de = (e.de & 0xFF00) | u16(source)
+	case 4:
+		e.hl = (u16(source) << 8) | (e.hl & 0x00FF)
+	case 5:
+		e.hl = (e.hl & 0xFF00) | u16(source)
+	case 6:
+		write(e, e.hl, source) or_return
+	case 7:
+		e.af = (u16(source) << 8) | (e.af & 0x00FF)
+	case:
+		return 0, .Instruction_Not_Parsed
+	}
+
+	if source_reg == 0x06 || dest_reg == 0x06 {
+		return 2, nil
+	} else {
+		return 1, nil
+	}
+}
+
+execute_halt :: #force_inline proc(
 	e: ^Emulator,
 	opcode: byte,
 ) -> (
