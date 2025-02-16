@@ -859,5 +859,52 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 test_execute_stop :: proc(t: ^testing.T) {}
 
 // TODO: should probably test Block 1 instructions 
+// TODO: should probably test Block 2 instructions
 
-test_execute_add_a_r8 :: proc() {}
+@(test)
+test_execute_add_a_r8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// Add with zero + full carry (c)
+	e.af = 0x8000
+	e.bc = 0x0080
+	cycles, err = execute_add_a_r8(&e, 0x81)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+
+	testing.expectf(
+		t,
+		e.af == (0x0000 | FLAG_ZERO | FLAG_FULL_CARRY),
+		"got=%X exp=%X",
+		e.af,
+		0x0000 | FLAG_ZERO | FLAG_FULL_CARRY,
+	)
+
+	// Add with half carry (b)
+	e.af = 0x0F00
+	e.bc = 0x0100
+	cycles, err = execute_add_a_r8(&e, 0x80)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.af == (0x1000 | FLAG_HALF_CARRY))
+
+	// Add with [hl]
+	e.wram[5] = 0x05
+	e.hl = 0xC005
+	e.af = 0x0000
+	cycles, err = execute_add_a_r8(&e, 0x86)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.af == 0x0500, "got=%X exp=0500", e.af)
+
+	// Add a to a
+	e.af = 0x4400
+	cycles, err = execute_add_a_r8(&e, 0x87)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.af == 0x8800)
+}

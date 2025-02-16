@@ -937,7 +937,54 @@ execute_add_a_r8 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	operand: byte = 0
+
+	switch opcode & 0x07 {
+	case 0:
+		// reg b
+		operand = byte((e.bc & 0xFF00) >> 8)
+	case 1:
+		// reg c 
+		operand = byte(e.bc)
+	case 2:
+		// reg d
+		operand = byte((e.de & 0xFF00) >> 8)
+	case 3:
+		// reg e 
+		operand = byte(e.de)
+	case 4:
+		// reg h
+		operand = byte((e.hl & 0xFF00) >> 8)
+	case 5:
+		// reg l
+		operand = byte(e.hl)
+	case 6:
+		// reg [hl]
+		operand = access(e, e.hl) or_return
+	case 7:
+		// reg a 
+		operand = byte((e.af & 0xFF00) >> 8)
+	case:
+		return 0, .Instruction_Not_Parsed
+	}
+
+	a := byte((e.af & 0xFF00) >> 8)
+	f := 0
+
+	if will_add_overflow(a, operand) do f |= FLAG_FULL_CARRY
+	if will_add_h_overflow(a, operand) do f |= FLAG_HALF_CARRY
+
+	a += operand
+
+	if a == 0 do f |= FLAG_ZERO
+
+	e.af = u16(a) << 8 | u16(f)
+
+	if opcode & 0x07 == 6 {
+		return 2, nil
+	} else {
+		return 1, nil
+	}
 }
 
 execute_adc_a_r8 :: #force_inline proc(
