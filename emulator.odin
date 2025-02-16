@@ -908,6 +908,104 @@ execute_block_2_instruction :: proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
+	switch (opcode & 0x38) >> 3 {
+	case 0:
+		return execute_add_a_r8(e, opcode)
+	case 1:
+		return execute_adc_a_r8(e, opcode)
+	case 2:
+		return execute_sub_a_r8(e, opcode)
+	case 3:
+		return execute_sbc_a_r8(e, opcode)
+	case 4:
+		return execute_and_a_r8(e, opcode)
+	case 5:
+		return execute_xor_a_r8(e, opcode)
+	case 6:
+		return execute_or_a_r8(e, opcode)
+	case 7:
+		return execute_cp_a_r8(e, opcode)
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
+}
+
+execute_add_a_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_adc_a_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_sub_a_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_sbc_a_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_and_a_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_xor_a_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_or_a_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+execute_cp_a_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
 	unimplemented()
 }
 

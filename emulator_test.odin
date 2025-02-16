@@ -859,3 +859,5 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 test_execute_stop :: proc(t: ^testing.T) {}
 
 // TODO: should probably test Block 1 instructions 
+
+test_execute_add_a_r8 :: proc() {}
