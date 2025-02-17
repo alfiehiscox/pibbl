@@ -908,3 +908,331 @@ test_execute_add_a_r8 :: proc(t: ^testing.T) {
 	testing.expect(t, cycles == 1)
 	testing.expect(t, e.af == 0x8800)
 }
+
+@(test)
+test_execute_adc_a_r8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// Add with zero + full carry (c)
+	e.af = 0x8000 | FLAG_FULL_CARRY
+	e.bc = 0x007F
+	cycles, err = execute_adc_a_r8(&e, 0x89)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		e.af == (0x0000 | FLAG_ZERO | FLAG_FULL_CARRY),
+		"got=%b exp=%b",
+		e.af,
+		0x0000 | FLAG_ZERO | FLAG_FULL_CARRY,
+	)
+
+	// Add with half carry (b)
+	e.af = 0x0F00 | FLAG_FULL_CARRY
+	e.bc = 0x0100
+	cycles, err = execute_adc_a_r8(&e, 0x88)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.af == (0x1100 | FLAG_HALF_CARRY))
+
+	// Add with [hl]
+	e.wram[5] = 0x05
+	e.hl = 0xC005
+	e.af = 0x0000 | FLAG_FULL_CARRY
+	cycles, err = execute_adc_a_r8(&e, 0x8E)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.af == 0x0600, "got=%X exp=0500", e.af)
+
+	// Add a to a
+	e.af = 0x4400 | FLAG_FULL_CARRY
+	cycles, err = execute_adc_a_r8(&e, 0x8F)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.af == 0x8900)
+}
+
+@(test)
+test_execute_sub_a_r8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// Add with zero + full carry (c)
+	e.af = 0x7E00
+	e.bc = 0x0081
+	cycles, err = execute_sub_a_r8(&e, 0x91)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		e.af == (0xFD00 | FLAG_FULL_CARRY),
+		"got=%X exp=%X",
+		e.af,
+		0xFD00 | FLAG_FULL_CARRY,
+	)
+
+	// Add with half carry (b)
+	e.af = 0x0F00
+	e.bc = 0x0100
+	cycles, err = execute_sub_a_r8(&e, 0x90)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0x0E00, "got=%X exp=%X", e.af, 0x0E00)
+
+	// Add with [hl]
+	e.wram[5] = 0x05
+	e.hl = 0xC005
+	e.af = 0xFF00
+	cycles, err = execute_sub_a_r8(&e, 0x96)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.af == 0xFA00, "got=%X exp=FB00", e.af)
+
+	// Add a to a
+	e.af = 0x4400
+	cycles, err = execute_sub_a_r8(&e, 0x97)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.af == 0x0000 | FLAG_ZERO)
+}
+
+@(test)
+test_execute_sbc_a_r8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// Add with zero + full carry (c)
+	e.af = 0x7E00 | FLAG_FULL_CARRY
+	e.bc = 0x0081
+	cycles, err = execute_sbc_a_r8(&e, 0x99)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		e.af == (0xFC00 | FLAG_FULL_CARRY),
+		"got=%X exp=%X",
+		e.af,
+		0xFC00 | FLAG_FULL_CARRY,
+	)
+
+	// Add with half carry (b)
+	e.af = 0x0F00 | FLAG_FULL_CARRY
+	e.bc = 0x0100
+	cycles, err = execute_sbc_a_r8(&e, 0x98)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0x0D00, "got=%X exp=%X", e.af, 0x0D00)
+
+	// Add with [hl]
+	e.wram[5] = 0x05
+	e.hl = 0xC005
+	e.af = 0xFF00 | FLAG_FULL_CARRY
+	cycles, err = execute_sbc_a_r8(&e, 0x9E)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.af == 0xF900, "got=%X exp=F900", e.af)
+
+	// Add a to a
+	e.af = 0x4400 | FLAG_FULL_CARRY
+	cycles, err = execute_sbc_a_r8(&e, 0x9F)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		e.af == 0xFF00 | FLAG_FULL_CARRY | FLAG_HALF_CARRY,
+		"got=%X exp=%X",
+		e.af,
+		0xFF00 | FLAG_FULL_CARRY | FLAG_HALF_CARRY,
+	)
+}
+
+@(test)
+test_execute_and_a_r8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	e.af = 0x7E00
+	e.bc = 0x0081
+	cycles, err = execute_and_a_r8(&e, 0xA1)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		e.af == (0x0000 | FLAG_HALF_CARRY | FLAG_ZERO),
+		"got=%X exp=%X",
+		e.af,
+		0x0000 | FLAG_HALF_CARRY | FLAG_ZERO,
+	)
+
+	e.af = 0x0F00
+	e.bc = 0x0100
+	cycles, err = execute_and_a_r8(&e, 0xA0)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		e.af == 0x0100 | FLAG_HALF_CARRY,
+		"got=%X exp=%X",
+		e.af,
+		0x0100 | FLAG_HALF_CARRY,
+	)
+
+	// Add with [hl]
+	e.wram[5] = 0x05
+	e.hl = 0xC005
+	e.af = 0xFF00
+	cycles, err = execute_and_a_r8(&e, 0xA6)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.af == 0x0500 | FLAG_HALF_CARRY, "got=%X exp=0520", e.af)
+
+	// Add a to a
+	e.af = 0x4400
+	cycles, err = execute_and_a_r8(&e, 0xA7)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		e.af == 0x4400 | FLAG_HALF_CARRY,
+		"got=%X exp=%X",
+		e.af,
+		0x4400 | FLAG_HALF_CARRY,
+	)
+}
+
+@(test)
+test_execute_xor_a_r8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+	cycles: int
+	err: Emulator_Error
+
+	e.af = 0x7E00
+	e.bc = 0x0081
+	cycles, err = execute_xor_a_r8(&e, 0xA9)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == (0xFF00), "got=%X exp=%X", e.af, 0xFF00)
+
+	e.af = 0x0F00
+	e.bc = 0x0100
+	cycles, err = execute_xor_a_r8(&e, 0xA8)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0x0E00, "got=%X exp=%X", e.af, 0x0E00)
+
+	// Add with [hl]
+	e.wram[5] = 0x05
+	e.hl = 0xC005
+	e.af = 0xFF00
+	cycles, err = execute_xor_a_r8(&e, 0xAE)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.af == 0xFA00, "got=%X exp=FA00", e.af)
+
+	// Add a to a
+	e.af = 0x4400
+	cycles, err = execute_xor_a_r8(&e, 0xAF)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0x0000 | FLAG_ZERO, "got=%X exp=%X", e.af, 0x0000 | FLAG_ZERO)
+}
+
+@(test)
+test_execute_or_a_r8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	e.af = 0x7E00
+	e.bc = 0x0081
+	cycles, err = execute_or_a_r8(&e, 0xB1)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0xFF00, "got=%X exp=%X", e.af, 0xFF00)
+
+	e.af = 0x0F00
+	e.bc = 0x0100
+	cycles, err = execute_or_a_r8(&e, 0xB0)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0x0F00, "got=%X exp=%X", e.af, 0x0F00)
+
+	// Add with [hl]
+	e.wram[5] = 0x05
+	e.hl = 0xC005
+	e.af = 0xFF00
+	cycles, err = execute_or_a_r8(&e, 0xB6)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.af == 0xFF00, "got=%X exp=FF00", e.af)
+
+	// Add a to a
+	e.af = 0x4400
+	cycles, err = execute_or_a_r8(&e, 0xB7)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0x4400, "got=%X exp=%X", e.af, 0x4400)
+}
+
+@(test)
+test_execute_cp_a_r8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// Add with zero + full carry (c)
+	e.af = 0x7E00
+	e.bc = 0x0081
+	cycles, err = execute_cp_a_r8(&e, 0xB9)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(
+		t,
+		e.af == (0x7E00 | FLAG_FULL_CARRY),
+		"got=%X exp=%X",
+		e.af,
+		0x7E00 | FLAG_FULL_CARRY,
+	)
+
+	// Add with half carry (b)
+	e.af = 0x0F00
+	e.bc = 0x0100
+	cycles, err = execute_cp_a_r8(&e, 0xB8)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expectf(t, e.af == 0x0F00, "got=%X exp=%X", e.af, 0x0E00)
+
+	// Add with [hl]
+	e.wram[5] = 0x05
+	e.hl = 0xC005
+	e.af = 0xFF00
+	cycles, err = execute_cp_a_r8(&e, 0xBE)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.af == 0xFF00, "got=%X exp=FF00", e.af)
+
+	// Add a to a
+	e.af = 0x4400
+	cycles, err = execute_cp_a_r8(&e, 0xBF)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.af == 0x4400 | FLAG_ZERO)
+}
