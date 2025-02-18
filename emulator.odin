@@ -122,8 +122,10 @@ The ALU has a half and full carry bit flag stored regirster f. Bit are referenec
 from 0. Say a u8 has bits 0-7 and a u16 has bits 0-15
 
 - On 8 bit calculation the half flag is set if there is a rollover from bit 3 to 4 
-- On 8 bit calcuations the full flag is set if there is a rollover from bit 7 and in odin we wrap arround for unsigned ints.
-- On 16 bit calculations the half flag is set if there is a rollover from bit 3 to 4 in the highest register. This basically means when a rollover from bit 11 to 12. 
+- On 8 bit calcuations the full flag is set if there is a rollover from bit 7 and in 
+  odin we wrap arround for unsigned ints.
+- On 16 bit calculations the half flag is set if there is a rollover from bit 3 to 4 in the highest register.
+  This basically means when a rollover from bit 11 to 12. 
 - On 16 bit calculations the full flag is set if there is a rollover from bit 15 and in odin we wrap arround for unsighed ints.
 
 **/
@@ -1156,7 +1158,26 @@ execute_block_3_instruction :: proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	switch opcode {
+	case 0xC6:
+		return execute_add_a_imm8(e, opcode)
+	case 0xCE:
+		return execute_adc_a_imm8(e, opcode)
+	case 0xD6:
+		return execute_sub_a_imm8(e, opcode)
+	case 0xDE:
+		return execute_sbc_a_imm8(e, opcode)
+	case 0xE6:
+		return execute_and_a_imm8(e, opcode)
+	case 0xEE:
+		return execute_xor_a_imm8(e, opcode)
+	case 0xF6:
+		return execute_or_a_imm8(e, opcode)
+	case 0xFE:
+		return execute_cp_a_imm8(e, opcode)
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
 }
 
 execute_add_a_imm8 :: #force_inline proc(

@@ -5,7 +5,7 @@ import "core:os"
 
 main :: proc() {
 	if len(os.args) != 2 {
-		fmt.printf("usage: pibbl <path-to-rom>")
+		fmt.printf("usage: pibbl <path-to-rom>\n")
 		os.exit(1)
 	}
 
