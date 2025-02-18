@@ -1159,6 +1159,164 @@ execute_block_3_instruction :: proc(
 	unimplemented()
 }
 
+execute_add_a_imm8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	operand := access(e, e.pc) or_return
+	e.pc += 1
+
+	a := byte((e.af & 0xFF00) >> 8)
+	f := 0
+
+	if will_add_overflow(a, operand) do f |= FLAG_FULL_CARRY
+	if will_add_h_overflow(a, operand) do f |= FLAG_HALF_CARRY
+
+	a += operand
+
+	if a == 0 do f |= FLAG_ZERO
+
+	e.af = u16(a) << 8 | u16(f)
+
+	return 2, nil
+}
+
+execute_adc_a_imm8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	operand := access(e, e.pc) or_return
+	e.pc += 1
+
+	carry := (byte(e.af) & FLAG_FULL_CARRY) >> 4
+
+	a := byte((e.af & 0xFF00) >> 8)
+	f := 0
+
+	if will_add_overflow(a, operand + carry) do f |= FLAG_FULL_CARRY
+	if will_add_h_overflow(a, operand + carry) do f |= FLAG_HALF_CARRY
+
+	a += operand + carry
+
+	if a == 0 do f |= FLAG_ZERO
+
+	e.af = u16(a) << 8 | u16(f)
+
+	return 2, nil
+}
+
+execute_sub_a_imm8 :: proc(e: ^Emulator, opcode: byte) -> (cycles: int, err: Emulator_Error) {
+	operand := access(e, e.pc) or_return
+	e.pc += 1
+
+	a := byte((e.af & 0xFF00) >> 8)
+	f := 0
+
+	if will_sub_underflow_u8(a, operand) do f |= FLAG_FULL_CARRY
+	if will_sub_h_underflow_u8(a, operand) do f |= FLAG_HALF_CARRY
+
+	a -= operand
+
+	if a == 0 do f |= FLAG_ZERO
+
+	e.af = u16(a) << 8 | u16(f)
+
+	return 2, nil
+}
+
+execute_sbc_a_imm8 :: proc(e: ^Emulator, opcode: byte) -> (cycles: int, err: Emulator_Error) {
+	operand := access(e, e.pc) or_return
+	e.pc += 1
+
+	carry := (byte(e.af) & FLAG_FULL_CARRY) >> 4
+
+	a := byte((e.af & 0xFF00) >> 8)
+	f := 0
+
+	if will_sub_underflow_u8(a, operand + carry) do f |= FLAG_FULL_CARRY
+	if will_sub_h_underflow_u8(a, operand + carry) do f |= FLAG_HALF_CARRY
+
+	a -= operand + carry
+
+	if a == 0 do f |= FLAG_ZERO
+
+	e.af = u16(a) << 8 | u16(f)
+
+	return 2, nil
+}
+
+execute_and_a_imm8 :: proc(e: ^Emulator, opcode: byte) -> (cycles: int, err: Emulator_Error) {
+	operand := access(e, e.pc) or_return
+	e.pc += 1
+
+	a := byte((e.af & 0xFF00) >> 8)
+	f := FLAG_HALF_CARRY
+
+	a &= operand
+
+	if a == 0 do f |= FLAG_ZERO
+
+	e.af = u16(a) << 8 | u16(f)
+
+	return 2, nil
+}
+
+execute_xor_a_imm8 :: proc(e: ^Emulator, opcode: byte) -> (cycles: int, err: Emulator_Error) {
+	operand := access(e, e.pc) or_return
+	e.pc += 1
+
+	a := byte((e.af & 0xFF00) >> 8)
+	f := 0
+
+	a ~= operand
+
+	if a == 0 do f |= FLAG_ZERO
+
+	e.af = u16(a) << 8 | u16(f)
+
+	return 2, nil
+}
+
+execute_or_a_imm8 :: proc(e: ^Emulator, opcode: byte) -> (cycles: int, err: Emulator_Error) {
+	operand := access(e, e.pc) or_return
+	e.pc += 1
+
+	a := byte((e.af & 0xFF00) >> 8)
+	f := 0
+
+	a |= operand
+
+	if a == 0 do f |= FLAG_ZERO
+
+	e.af = u16(a) << 8 | u16(f)
+
+	return 2, nil
+}
+
+execute_cp_a_imm8 :: proc(e: ^Emulator, opcode: byte) -> (cycles: int, err: Emulator_Error) {
+	operand := access(e, e.pc) or_return
+	e.pc += 1
+
+	a := byte((e.af & 0xFF00) >> 8)
+	f := 0
+
+	if will_sub_underflow_u8(a, operand) do f |= FLAG_FULL_CARRY
+	if will_sub_h_underflow_u8(a, operand) do f |= FLAG_HALF_CARRY
+
+	a -= operand
+
+	if a == 0 do f |= FLAG_ZERO
+
+	e.af = (e.af & 0xFF00) | u16(f)
+
+	return 2, nil
+}
 
 tick_peripherals :: proc(e: ^Emulator, mcycles: int) -> Emulator_Error {
 	unimplemented()

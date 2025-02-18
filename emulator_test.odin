@@ -1236,3 +1236,73 @@ test_execute_cp_a_r8 :: proc(t: ^testing.T) {
 	testing.expect(t, cycles == 1)
 	testing.expect(t, e.af == 0x4400 | FLAG_ZERO)
 }
+
+@(test)
+test_execute_add_a_imm8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// Add with zero + full carry (c)
+	e.af = 0x8000
+	e.rom0[e.pc] = 0x80
+	cycles, err = execute_add_a_imm8(&e, 0xC6)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.pc == 2)
+	testing.expectf(
+		t,
+		e.af == (0x0000 | FLAG_ZERO | FLAG_FULL_CARRY),
+		"got=%X exp=%X",
+		e.af,
+		0x0000 | FLAG_ZERO | FLAG_FULL_CARRY,
+	)
+
+	e.pc += 1
+
+	// Add with half carry (b)
+	e.af = 0x0F00
+	e.rom0[e.pc] = 0x01
+	cycles, err = execute_add_a_imm8(&e, 0xC6)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.pc == 4)
+	testing.expect(t, e.af == (0x1000 | FLAG_HALF_CARRY))
+}
+
+@(test)
+test_execute_adc_a_imm8 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	// Add with zero + full carry (c)
+	e.af = 0x8000 | FLAG_FULL_CARRY
+	e.rom0[e.pc] = 0x7F
+	cycles, err = execute_adc_a_imm8(&e, 0xCE)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.pc == 2)
+	testing.expectf(
+		t,
+		e.af == (0x0000 | FLAG_ZERO | FLAG_FULL_CARRY),
+		"got=%b exp=%b",
+		e.af,
+		0x0000 | FLAG_ZERO | FLAG_FULL_CARRY,
+	)
+
+	e.pc += 1
+
+	// Add with half carry (b)
+	e.af = 0x0F00 | FLAG_FULL_CARRY
+	e.rom0[e.pc] = 0x01
+	cycles, err = execute_adc_a_imm8(&e, 0xCE)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.pc == 4)
+	testing.expect(t, e.af == (0x1100 | FLAG_HALF_CARRY))
+}
