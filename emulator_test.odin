@@ -859,7 +859,6 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 test_execute_stop :: proc(t: ^testing.T) {}
 
 // TODO: should probably test Block 1 instructions 
-// TODO: should probably test Block 2 instructions
 
 @(test)
 test_execute_add_a_r8 :: proc(t: ^testing.T) {
@@ -872,7 +871,7 @@ test_execute_add_a_r8 :: proc(t: ^testing.T) {
 	// Add with zero + full carry (c)
 	e.af = 0x8000
 	e.bc = 0x0080
-	cycles, err = execute_add_a_r8(&e, 0x81)
+	cycles, err = execute_block_2_instruction(&e, 0x81)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 
@@ -887,7 +886,7 @@ test_execute_add_a_r8 :: proc(t: ^testing.T) {
 	// Add with half carry (b)
 	e.af = 0x0F00
 	e.bc = 0x0100
-	cycles, err = execute_add_a_r8(&e, 0x80)
+	cycles, err = execute_block_2_instruction(&e, 0x80)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expect(t, e.af == (0x1000 | FLAG_HALF_CARRY))
@@ -896,14 +895,14 @@ test_execute_add_a_r8 :: proc(t: ^testing.T) {
 	e.wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0x0000
-	cycles, err = execute_add_a_r8(&e, 0x86)
+	cycles, err = execute_block_2_instruction(&e, 0x86)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expectf(t, e.af == 0x0500, "got=%X exp=0500", e.af)
 
 	// Add a to a
 	e.af = 0x4400
-	cycles, err = execute_add_a_r8(&e, 0x87)
+	cycles, err = execute_block_2_instruction(&e, 0x87)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expect(t, e.af == 0x8800)
@@ -920,7 +919,7 @@ test_execute_adc_a_r8 :: proc(t: ^testing.T) {
 	// Add with zero + full carry (c)
 	e.af = 0x8000 | FLAG_FULL_CARRY
 	e.bc = 0x007F
-	cycles, err = execute_adc_a_r8(&e, 0x89)
+	cycles, err = execute_block_2_instruction(&e, 0x89)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(
@@ -934,7 +933,7 @@ test_execute_adc_a_r8 :: proc(t: ^testing.T) {
 	// Add with half carry (b)
 	e.af = 0x0F00 | FLAG_FULL_CARRY
 	e.bc = 0x0100
-	cycles, err = execute_adc_a_r8(&e, 0x88)
+	cycles, err = execute_block_2_instruction(&e, 0x88)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expect(t, e.af == (0x1100 | FLAG_HALF_CARRY))
@@ -943,14 +942,14 @@ test_execute_adc_a_r8 :: proc(t: ^testing.T) {
 	e.wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0x0000 | FLAG_FULL_CARRY
-	cycles, err = execute_adc_a_r8(&e, 0x8E)
+	cycles, err = execute_block_2_instruction(&e, 0x8E)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expectf(t, e.af == 0x0600, "got=%X exp=0500", e.af)
 
 	// Add a to a
 	e.af = 0x4400 | FLAG_FULL_CARRY
-	cycles, err = execute_adc_a_r8(&e, 0x8F)
+	cycles, err = execute_block_2_instruction(&e, 0x8F)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expect(t, e.af == 0x8900)
@@ -967,7 +966,7 @@ test_execute_sub_a_r8 :: proc(t: ^testing.T) {
 	// Add with zero + full carry (c)
 	e.af = 0x7E00
 	e.bc = 0x0081
-	cycles, err = execute_sub_a_r8(&e, 0x91)
+	cycles, err = execute_block_2_instruction(&e, 0x91)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(
@@ -981,7 +980,7 @@ test_execute_sub_a_r8 :: proc(t: ^testing.T) {
 	// Add with half carry (b)
 	e.af = 0x0F00
 	e.bc = 0x0100
-	cycles, err = execute_sub_a_r8(&e, 0x90)
+	cycles, err = execute_block_2_instruction(&e, 0x90)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(t, e.af == 0x0E00, "got=%X exp=%X", e.af, 0x0E00)
@@ -990,14 +989,14 @@ test_execute_sub_a_r8 :: proc(t: ^testing.T) {
 	e.wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00
-	cycles, err = execute_sub_a_r8(&e, 0x96)
+	cycles, err = execute_block_2_instruction(&e, 0x96)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expectf(t, e.af == 0xFA00, "got=%X exp=FB00", e.af)
 
 	// Add a to a
 	e.af = 0x4400
-	cycles, err = execute_sub_a_r8(&e, 0x97)
+	cycles, err = execute_block_2_instruction(&e, 0x97)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expect(t, e.af == 0x0000 | FLAG_ZERO)
@@ -1014,7 +1013,7 @@ test_execute_sbc_a_r8 :: proc(t: ^testing.T) {
 	// Add with zero + full carry (c)
 	e.af = 0x7E00 | FLAG_FULL_CARRY
 	e.bc = 0x0081
-	cycles, err = execute_sbc_a_r8(&e, 0x99)
+	cycles, err = execute_block_2_instruction(&e, 0x99)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(
@@ -1028,7 +1027,7 @@ test_execute_sbc_a_r8 :: proc(t: ^testing.T) {
 	// Add with half carry (b)
 	e.af = 0x0F00 | FLAG_FULL_CARRY
 	e.bc = 0x0100
-	cycles, err = execute_sbc_a_r8(&e, 0x98)
+	cycles, err = execute_block_2_instruction(&e, 0x98)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(t, e.af == 0x0D00, "got=%X exp=%X", e.af, 0x0D00)
@@ -1037,14 +1036,14 @@ test_execute_sbc_a_r8 :: proc(t: ^testing.T) {
 	e.wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00 | FLAG_FULL_CARRY
-	cycles, err = execute_sbc_a_r8(&e, 0x9E)
+	cycles, err = execute_block_2_instruction(&e, 0x9E)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expectf(t, e.af == 0xF900, "got=%X exp=F900", e.af)
 
 	// Add a to a
 	e.af = 0x4400 | FLAG_FULL_CARRY
-	cycles, err = execute_sbc_a_r8(&e, 0x9F)
+	cycles, err = execute_block_2_instruction(&e, 0x9F)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(
@@ -1066,7 +1065,7 @@ test_execute_and_a_r8 :: proc(t: ^testing.T) {
 
 	e.af = 0x7E00
 	e.bc = 0x0081
-	cycles, err = execute_and_a_r8(&e, 0xA1)
+	cycles, err = execute_block_2_instruction(&e, 0xA1)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(
@@ -1079,7 +1078,7 @@ test_execute_and_a_r8 :: proc(t: ^testing.T) {
 
 	e.af = 0x0F00
 	e.bc = 0x0100
-	cycles, err = execute_and_a_r8(&e, 0xA0)
+	cycles, err = execute_block_2_instruction(&e, 0xA0)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(
@@ -1094,14 +1093,14 @@ test_execute_and_a_r8 :: proc(t: ^testing.T) {
 	e.wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00
-	cycles, err = execute_and_a_r8(&e, 0xA6)
+	cycles, err = execute_block_2_instruction(&e, 0xA6)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expectf(t, e.af == 0x0500 | FLAG_HALF_CARRY, "got=%X exp=0520", e.af)
 
 	// Add a to a
 	e.af = 0x4400
-	cycles, err = execute_and_a_r8(&e, 0xA7)
+	cycles, err = execute_block_2_instruction(&e, 0xA7)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(
@@ -1122,14 +1121,14 @@ test_execute_xor_a_r8 :: proc(t: ^testing.T) {
 
 	e.af = 0x7E00
 	e.bc = 0x0081
-	cycles, err = execute_xor_a_r8(&e, 0xA9)
+	cycles, err = execute_block_2_instruction(&e, 0xA9)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(t, e.af == (0xFF00), "got=%X exp=%X", e.af, 0xFF00)
 
 	e.af = 0x0F00
 	e.bc = 0x0100
-	cycles, err = execute_xor_a_r8(&e, 0xA8)
+	cycles, err = execute_block_2_instruction(&e, 0xA8)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(t, e.af == 0x0E00, "got=%X exp=%X", e.af, 0x0E00)
@@ -1138,14 +1137,14 @@ test_execute_xor_a_r8 :: proc(t: ^testing.T) {
 	e.wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00
-	cycles, err = execute_xor_a_r8(&e, 0xAE)
+	cycles, err = execute_block_2_instruction(&e, 0xAE)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expectf(t, e.af == 0xFA00, "got=%X exp=FA00", e.af)
 
 	// Add a to a
 	e.af = 0x4400
-	cycles, err = execute_xor_a_r8(&e, 0xAF)
+	cycles, err = execute_block_2_instruction(&e, 0xAF)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(t, e.af == 0x0000 | FLAG_ZERO, "got=%X exp=%X", e.af, 0x0000 | FLAG_ZERO)
@@ -1161,14 +1160,14 @@ test_execute_or_a_r8 :: proc(t: ^testing.T) {
 
 	e.af = 0x7E00
 	e.bc = 0x0081
-	cycles, err = execute_or_a_r8(&e, 0xB1)
+	cycles, err = execute_block_2_instruction(&e, 0xB1)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(t, e.af == 0xFF00, "got=%X exp=%X", e.af, 0xFF00)
 
 	e.af = 0x0F00
 	e.bc = 0x0100
-	cycles, err = execute_or_a_r8(&e, 0xB0)
+	cycles, err = execute_block_2_instruction(&e, 0xB0)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(t, e.af == 0x0F00, "got=%X exp=%X", e.af, 0x0F00)
@@ -1177,14 +1176,14 @@ test_execute_or_a_r8 :: proc(t: ^testing.T) {
 	e.wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00
-	cycles, err = execute_or_a_r8(&e, 0xB6)
+	cycles, err = execute_block_2_instruction(&e, 0xB6)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expectf(t, e.af == 0xFF00, "got=%X exp=FF00", e.af)
 
 	// Add a to a
 	e.af = 0x4400
-	cycles, err = execute_or_a_r8(&e, 0xB7)
+	cycles, err = execute_block_2_instruction(&e, 0xB7)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(t, e.af == 0x4400, "got=%X exp=%X", e.af, 0x4400)
@@ -1201,7 +1200,7 @@ test_execute_cp_a_r8 :: proc(t: ^testing.T) {
 	// Add with zero + full carry (c)
 	e.af = 0x7E00
 	e.bc = 0x0081
-	cycles, err = execute_cp_a_r8(&e, 0xB9)
+	cycles, err = execute_block_2_instruction(&e, 0xB9)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(
@@ -1215,7 +1214,7 @@ test_execute_cp_a_r8 :: proc(t: ^testing.T) {
 	// Add with half carry (b)
 	e.af = 0x0F00
 	e.bc = 0x0100
-	cycles, err = execute_cp_a_r8(&e, 0xB8)
+	cycles, err = execute_block_2_instruction(&e, 0xB8)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expectf(t, e.af == 0x0F00, "got=%X exp=%X", e.af, 0x0E00)
@@ -1224,14 +1223,14 @@ test_execute_cp_a_r8 :: proc(t: ^testing.T) {
 	e.wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00
-	cycles, err = execute_cp_a_r8(&e, 0xBE)
+	cycles, err = execute_block_2_instruction(&e, 0xBE)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expectf(t, e.af == 0xFF00, "got=%X exp=FF00", e.af)
 
 	// Add a to a
 	e.af = 0x4400
-	cycles, err = execute_cp_a_r8(&e, 0xBF)
+	cycles, err = execute_block_2_instruction(&e, 0xBF)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 1)
 	testing.expect(t, e.af == 0x4400 | FLAG_ZERO)

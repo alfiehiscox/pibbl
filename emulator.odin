@@ -910,48 +910,50 @@ execute_block_2_instruction :: proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
+	operand := get_arithmetic_register_value(e, opcode) or_return
+
+	carry: byte = 0
 	switch (opcode & 0x38) >> 3 {
-	case 0:
-		return execute_add_a_r8(e, opcode)
-	case 1:
-		return execute_adc_a_r8(e, opcode)
-	case 2:
-		return execute_sub_a_r8(e, opcode)
-	case 3:
-		return execute_sbc_a_r8(e, opcode)
+	case 1, 3:
+		carry = (byte(e.af) & FLAG_FULL_CARRY) >> 4
+	}
+
+	a := byte((e.af & 0xFF00) >> 8)
+	f := 0
+
+	switch (opcode & 0x38) >> 3 {
+	case 0, 1:
+		if will_add_overflow(a, operand + carry) do f |= FLAG_FULL_CARRY
+		if will_add_h_overflow(a, operand + carry) do f |= FLAG_HALF_CARRY
+	case 2, 3, 7:
+		if will_sub_underflow_u8(a, operand + carry) do f |= FLAG_FULL_CARRY
+		if will_sub_h_underflow_u8(a, operand + carry) do f |= FLAG_HALF_CARRY
 	case 4:
-		return execute_and_a_r8(e, opcode)
+		f |= FLAG_HALF_CARRY
+	}
+
+	switch (opcode & 0x38) >> 3 {
+	case 0, 1:
+		a += operand + carry
+	case 2, 3, 7:
+		a -= operand + carry
+	case 4:
+		a &= operand
 	case 5:
-		return execute_xor_a_r8(e, opcode)
+		a ~= operand
 	case 6:
-		return execute_or_a_r8(e, opcode)
-	case 7:
-		return execute_cp_a_r8(e, opcode)
+		a |= operand
 	case:
 		return 0, .Instruction_Not_Emulated
 	}
-}
-
-execute_add_a_r8 :: #force_inline proc(
-	e: ^Emulator,
-	opcode: byte,
-) -> (
-	cycles: int,
-	err: Emulator_Error,
-) {
-	operand := get_arithmetic_register_value(e, opcode) or_return
-
-	a := byte((e.af & 0xFF00) >> 8)
-	f := 0
-
-	if will_add_overflow(a, operand) do f |= FLAG_FULL_CARRY
-	if will_add_h_overflow(a, operand) do f |= FLAG_HALF_CARRY
-
-	a += operand
 
 	if a == 0 do f |= FLAG_ZERO
 
-	e.af = u16(a) << 8 | u16(f)
+	if (opcode & 0x38) >> 3 == 7 {
+		e.af = u16(e.af) | u16(f)
+	} else {
+		e.af = u16(a) << 8 | u16(f)
+	}
 
 	if opcode & 0x07 == 6 {
 		return 2, nil
@@ -959,197 +961,6 @@ execute_add_a_r8 :: #force_inline proc(
 		return 1, nil
 	}
 }
-
-execute_adc_a_r8 :: #force_inline proc(
-	e: ^Emulator,
-	opcode: byte,
-) -> (
-	cycles: int,
-	err: Emulator_Error,
-) {
-	operand := get_arithmetic_register_value(e, opcode) or_return
-	carry := (byte(e.af) & FLAG_FULL_CARRY) >> 4
-
-	a := byte((e.af & 0xFF00) >> 8)
-	f := 0
-
-	if will_add_overflow(a, operand + carry) do f |= FLAG_FULL_CARRY
-	if will_add_h_overflow(a, operand + carry) do f |= FLAG_HALF_CARRY
-
-	a += operand + carry
-
-	if a == 0 do f |= FLAG_ZERO
-
-	e.af = u16(a) << 8 | u16(f)
-
-	if opcode & 0x07 == 6 {
-		return 2, nil
-	} else {
-		return 1, nil
-	}
-}
-
-execute_sub_a_r8 :: #force_inline proc(
-	e: ^Emulator,
-	opcode: byte,
-) -> (
-	cycles: int,
-	err: Emulator_Error,
-) {
-	operand := get_arithmetic_register_value(e, opcode) or_return
-
-	a := byte((e.af & 0xFF00) >> 8)
-	f := 0
-
-	if will_sub_underflow_u8(a, operand) do f |= FLAG_FULL_CARRY
-	if will_sub_h_underflow_u8(a, operand) do f |= FLAG_HALF_CARRY
-
-	a -= operand
-
-	if a == 0 do f |= FLAG_ZERO
-
-	e.af = u16(a) << 8 | u16(f)
-
-	if opcode & 0x07 == 6 {
-		return 2, nil
-	} else {
-		return 1, nil
-	}
-}
-
-execute_sbc_a_r8 :: #force_inline proc(
-	e: ^Emulator,
-	opcode: byte,
-) -> (
-	cycles: int,
-	err: Emulator_Error,
-) {
-	operand := get_arithmetic_register_value(e, opcode) or_return
-	carry := (byte(e.af) & FLAG_FULL_CARRY) >> 4
-
-	a := byte((e.af & 0xFF00) >> 8)
-	f := 0
-
-	if will_sub_underflow_u8(a, operand + carry) do f |= FLAG_FULL_CARRY
-	if will_sub_h_underflow_u8(a, operand + carry) do f |= FLAG_HALF_CARRY
-
-	a -= operand + carry
-
-	if a == 0 do f |= FLAG_ZERO
-
-	e.af = u16(a) << 8 | u16(f)
-
-	if opcode & 0x07 == 6 {
-		return 2, nil
-	} else {
-		return 1, nil
-	}
-}
-
-execute_and_a_r8 :: #force_inline proc(
-	e: ^Emulator,
-	opcode: byte,
-) -> (
-	cycles: int,
-	err: Emulator_Error,
-) {
-	operand := get_arithmetic_register_value(e, opcode) or_return
-
-	a := byte((e.af & 0xFF00) >> 8)
-	f := FLAG_HALF_CARRY
-
-	a &= operand
-
-	if a == 0 do f |= FLAG_ZERO
-
-	e.af = u16(a) << 8 | u16(f)
-
-	if opcode & 0x07 == 6 {
-		return 2, nil
-	} else {
-		return 1, nil
-	}
-}
-
-
-execute_xor_a_r8 :: #force_inline proc(
-	e: ^Emulator,
-	opcode: byte,
-) -> (
-	cycles: int,
-	err: Emulator_Error,
-) {
-	operand := get_arithmetic_register_value(e, opcode) or_return
-
-	a := byte((e.af & 0xFF00) >> 8)
-	f := 0
-
-	a ~= operand
-
-	if a == 0 do f |= FLAG_ZERO
-
-	e.af = u16(a) << 8 | u16(f)
-
-	if opcode & 0x07 == 6 {
-		return 2, nil
-	} else {
-		return 1, nil
-	}
-}
-
-execute_or_a_r8 :: #force_inline proc(
-	e: ^Emulator,
-	opcode: byte,
-) -> (
-	cycles: int,
-	err: Emulator_Error,
-) {
-	operand := get_arithmetic_register_value(e, opcode) or_return
-
-	a := byte((e.af & 0xFF00) >> 8)
-	f := 0
-
-	a |= operand
-
-	if a == 0 do f |= FLAG_ZERO
-
-	e.af = u16(a) << 8 | u16(f)
-
-	if opcode & 0x07 == 6 {
-		return 2, nil
-	} else {
-		return 1, nil
-	}
-}
-
-execute_cp_a_r8 :: #force_inline proc(
-	e: ^Emulator,
-	opcode: byte,
-) -> (
-	cycles: int,
-	err: Emulator_Error,
-) {
-	operand := get_arithmetic_register_value(e, opcode) or_return
-
-	a := byte((e.af & 0xFF00) >> 8)
-	f := 0
-
-	if will_sub_underflow_u8(a, operand) do f |= FLAG_FULL_CARRY
-	if will_sub_h_underflow_u8(a, operand) do f |= FLAG_HALF_CARRY
-
-	a -= operand
-
-	if a == 0 do f |= FLAG_ZERO
-
-	e.af = (e.af & 0xFF00) | u16(f)
-
-	if opcode & 0x07 == 6 {
-		return 2, nil
-	} else {
-		return 1, nil
-	}
-}
-
 
 execute_block_3_instruction :: proc(
 	e: ^Emulator,
