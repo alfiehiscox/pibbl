@@ -1247,7 +1247,7 @@ test_execute_add_a_imm8 :: proc(t: ^testing.T) {
 	// Add with zero + full carry (c)
 	e.af = 0x8000
 	e.rom0[e.pc] = 0x80
-	cycles, err = execute_add_a_imm8(&e, 0xC6)
+	cycles, err = execute_block_3_instruction(&e, 0xC6)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expect(t, e.pc == 2)
@@ -1264,7 +1264,7 @@ test_execute_add_a_imm8 :: proc(t: ^testing.T) {
 	// Add with half carry (b)
 	e.af = 0x0F00
 	e.rom0[e.pc] = 0x01
-	cycles, err = execute_add_a_imm8(&e, 0xC6)
+	cycles, err = execute_block_3_instruction(&e, 0xC6)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expect(t, e.pc == 4)
@@ -1282,7 +1282,7 @@ test_execute_adc_a_imm8 :: proc(t: ^testing.T) {
 	// Add with zero + full carry (c)
 	e.af = 0x8000 | FLAG_FULL_CARRY
 	e.rom0[e.pc] = 0x7F
-	cycles, err = execute_adc_a_imm8(&e, 0xCE)
+	cycles, err = execute_block_3_instruction(&e, 0xCE)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expect(t, e.pc == 2)
@@ -1299,9 +1299,57 @@ test_execute_adc_a_imm8 :: proc(t: ^testing.T) {
 	// Add with half carry (b)
 	e.af = 0x0F00 | FLAG_FULL_CARRY
 	e.rom0[e.pc] = 0x01
-	cycles, err = execute_adc_a_imm8(&e, 0xCE)
+	cycles, err = execute_block_3_instruction(&e, 0xCE)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
 	testing.expect(t, e.pc == 4)
 	testing.expect(t, e.af == (0x1100 | FLAG_HALF_CARRY))
+}
+
+// TODO: Probably do the rest of a imm8 arithmetic tests
+
+@(test)
+test_execute_ret_cond :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_execute_ret :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_execute_reti :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_execute_jp_cond_imm8 :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_execute_jp_imm8 :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_execute_jp_hl :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_execute_call_imm16 :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_execute_call_cond_imm16 :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_execute_rst_tgt3 :: proc(t: ^testing.T) {
+
+	testing.fail(t)
 }
