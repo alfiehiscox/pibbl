@@ -87,6 +87,7 @@ Emulator_Error :: enum {
 	Invalid_Access,
 	Invalid_Write,
 	Stack_Overflow,
+	Stack_Underflow,
 	Instruction_Not_Emulated,
 	Instruction_Not_Parsed,
 	Unknown_Register,
@@ -1313,12 +1314,39 @@ write :: proc(e: ^Emulator, addr: u16, val: byte) -> Emulator_Error {
 	return nil
 }
 
-stack_push :: proc(e: ^Emulator, val: byte) -> Emulator_Error {
-	unimplemented()
+stack_push_byte :: proc(e: ^Emulator, val: byte) -> Emulator_Error {
+	if e.sp - 1 < 0xC000 do return .Stack_Overflow
+	e.sp -= 1
+	return write(e, e.sp, val)
 }
 
-stack_pop :: proc(e: ^Emulator) -> (byte, Emulator_Error) {
-	unimplemented()
+stack_pop_byte :: proc(e: ^Emulator) -> (b: byte, err: Emulator_Error) {
+	if e.sp + 1 > 0xFFFE do return 0, .Stack_Underflow
+	b = access(e, e.sp) or_return
+	e.sp += 1
+	return b, nil
+}
+
+stack_push_u16 :: proc(e: ^Emulator, val: u16) -> Emulator_Error {
+	parts: [2]byte
+	ok := endian.put_u16(parts[:], .Little, val)
+	if !ok do return .Invalid_Write
+	stack_push_byte(e, parts[0]) or_return
+	stack_push_byte(e, parts[1]) or_return
+	return nil
+}
+
+stack_pop_u16 :: proc(e: ^Emulator) -> (b: u16, err: Emulator_Error) {
+	parts: [2]byte
+
+	parts[0] = stack_pop_byte(e) or_return
+	parts[1] = stack_pop_byte(e) or_return
+
+	ok: bool
+	b, ok = endian.get_u16(parts[:], .Little)
+	if !ok do return 0, .Invalid_Write
+
+	return b, nil
 }
 
 will_add_overflow :: proc(a, b: $T) -> bool where intrinsics.type_is_integer(T) {
