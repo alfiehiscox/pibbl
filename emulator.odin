@@ -1328,25 +1328,19 @@ stack_pop_byte :: proc(e: ^Emulator) -> (b: byte, err: Emulator_Error) {
 }
 
 stack_push_u16 :: proc(e: ^Emulator, val: u16) -> Emulator_Error {
-	parts: [2]byte
-	ok := endian.put_u16(parts[:], .Little, val)
-	if !ok do return .Invalid_Write
-	stack_push_byte(e, parts[0]) or_return
-	stack_push_byte(e, parts[1]) or_return
+	if e.sp - 2 < 0xC000 do return .Stack_Overflow
+	e.sp -= 2
+	write(e, e.sp, byte(val & 0xFF)) or_return
+	write(e, e.sp + 1, byte((val >> 8) & 0xFF)) or_return
 	return nil
 }
 
 stack_pop_u16 :: proc(e: ^Emulator) -> (b: u16, err: Emulator_Error) {
-	parts: [2]byte
-
-	parts[0] = stack_pop_byte(e) or_return
-	parts[1] = stack_pop_byte(e) or_return
-
-	ok: bool
-	b, ok = endian.get_u16(parts[:], .Little)
-	if !ok do return 0, .Invalid_Write
-
-	return b, nil
+	if e.sp + 2 > 0xFFFE do return 0, .Stack_Underflow
+	low := access(e, e.sp) or_return
+	high := access(e, e.sp + 1) or_return
+	e.sp += 2
+	return u16(high) << 8 | u16(low), nil
 }
 
 will_add_overflow :: proc(a, b: $T) -> bool where intrinsics.type_is_integer(T) {

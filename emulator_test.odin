@@ -1410,6 +1410,81 @@ test_execute_call_cond_imm16 :: proc(t: ^testing.T) {
 
 @(test)
 test_execute_rst_tgt3 :: proc(t: ^testing.T) {
-
 	testing.fail(t)
+}
+
+@(test)
+test_stack_byte :: proc(t: ^testing.T) {
+	e: Emulator
+	e.sp = 0xFFFE
+	err: Emulator_Error
+
+	err = stack_push_byte(&e, 0x01)
+	testing.expectf(t, err == nil, "err=%s", err)
+	err = stack_push_byte(&e, 0x02)
+	testing.expectf(t, err == nil, "err=%s", err)
+	err = stack_push_byte(&e, 0x03)
+	testing.expectf(t, err == nil, "err=%s", err)
+	err = stack_push_byte(&e, 0x04)
+	testing.expectf(t, err == nil, "err=%s", err)
+
+	testing.expect(t, e.sp == 0xFFFE - 4)
+
+	b: byte
+
+	b, err = stack_pop_byte(&e)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, b == 0x04)
+
+	b, err = stack_pop_byte(&e)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, b == 0x03)
+
+	b, err = stack_pop_byte(&e)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, b == 0x02)
+
+	b, err = stack_pop_byte(&e)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, b == 0x01)
+
+	testing.expect(t, e.sp == 0xFFFE)
+}
+
+@(test)
+test_stack_u16 :: proc(t: ^testing.T) {
+	e: Emulator
+	e.sp = 0xFFFE
+	err: Emulator_Error
+
+	err = stack_push_u16(&e, 0x01)
+	testing.expectf(t, err == nil, "err=%s", err)
+	err = stack_push_u16(&e, 0x02)
+	testing.expectf(t, err == nil, "err=%s", err)
+	err = stack_push_u16(&e, 0x03)
+	testing.expectf(t, err == nil, "err=%s", err)
+	err = stack_push_u16(&e, 0x04)
+	testing.expectf(t, err == nil, "err=%s", err)
+
+	testing.expect(t, e.sp == 0xFFFE - 8)
+
+	b: u16
+
+	b, err = stack_pop_u16(&e)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, b == 0x04)
+
+	b, err = stack_pop_u16(&e)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, b == 0x03)
+
+	b, err = stack_pop_u16(&e)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, b == 0x02)
+
+	b, err = stack_pop_u16(&e)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, b == 0x01)
+
+	testing.expect(t, e.sp == 0xFFFE)
 }
