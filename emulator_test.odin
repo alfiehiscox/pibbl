@@ -1325,17 +1325,77 @@ test_execute_reti :: proc(t: ^testing.T) {
 
 @(test)
 test_execute_jp_cond_imm8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	copy_slice(e.rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
+
+	// Jump if nz - fail 
+	e.pc = 1
+	e.af = 0 | FLAG_ZERO
+	cycles, err = execute_block_3_instruction(&e, 0xC2)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 3)
+
+	// Jump if nz - success 
+	e.pc = 1
+	e.af = 0
+	cycles, err = execute_block_3_instruction(&e, 0xC2)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0x22)
+
+	// Jump if c - success 
+	e.pc = 1
+	e.af = 0 | FLAG_FULL_CARRY
+	cycles, err = execute_block_3_instruction(&e, 0xDA)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0x22)
+
+	// Jump if nc - fail 
+	e.pc = 1
+	e.af = 0 | FLAG_FULL_CARRY
+	cycles, err = execute_block_3_instruction(&e, 0xD2)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 3)
+
 }
 
 @(test)
 test_execute_jp_imm8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	copy_slice(e.rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
+
+	cycles, err = execute_block_3_instruction(&e, 0xC3)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0x22)
 }
 
 @(test)
 test_execute_jp_hl :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	e.hl = 0x2200
+	cycles, err = execute_block_3_instruction(&e, 0xE9)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 1)
+	testing.expect(t, e.pc == 0x2200)
 }
 
 @(test)
