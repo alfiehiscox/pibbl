@@ -1449,12 +1449,83 @@ test_execute_jp_hl :: proc(t: ^testing.T) {
 
 @(test)
 test_execute_call_imm16 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	e.pc = 1
+	sp := e.sp
+
+	cycles: int
+	err: Emulator_Error
+
+	copy_slice(e.rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
+
+	cycles, err = execute_block_3_instruction(&e, 0xCD)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 6)
+	testing.expect(t, e.pc == 0x22)
+	testing.expect(t, e.sp == sp - 2)
+
+	addr, _ := stack_pop_u16(&e)
+	testing.expectf(t, addr == 4, "got=%d exp=%d", addr, 4)
 }
 
 @(test)
 test_execute_call_cond_imm16 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	e.pc = 1
+	sp := e.sp
+
+	cycles: int
+	err: Emulator_Error
+	addr: u16
+
+	copy_slice(e.rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
+
+	// Jump if nz - fail 
+	e.pc = 1
+	e.af = 0 | FLAG_ZERO
+	cycles, err = execute_block_3_instruction(&e, 0xC4)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 3)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 4, "got=%d exp=%d", addr, 4)
+
+	// Jump if nz - success 
+	e.pc = 1
+	e.af = 0
+	cycles, err = execute_block_3_instruction(&e, 0xC4)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 6)
+	testing.expect(t, e.pc == 0x22)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 4, "got=%d exp=%d", addr, 4)
+
+	// Jump if c - success 
+	e.pc = 1
+	e.af = 0 | FLAG_FULL_CARRY
+	cycles, err = execute_block_3_instruction(&e, 0xDC)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 6)
+	testing.expect(t, e.pc == 0x22)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 4, "got=%d exp=%d", addr, 4)
+
+	// Jump if nc - fail 
+	e.pc = 1
+	e.af = 0 | FLAG_FULL_CARRY
+	cycles, err = execute_block_3_instruction(&e, 0xD4)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 3)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 4, "got=%d exp=%d", addr, 4)
+
+	//testing.expect(t, e.sp == sp)
+
 }
 
 @(test)

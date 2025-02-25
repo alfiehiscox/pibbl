@@ -1013,7 +1013,19 @@ execute_call_imm16 :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	val_bytes := access_range(e, e.pc, e.pc + 2) or_return
+	defer delete(val_bytes)
+
+	e.pc += 2
+
+	stack_push_u16(e, e.pc + 1) or_return
+
+	val, ok := endian.get_u16(val_bytes, .Little)
+	if !ok do return 0, .Instruction_Not_Parsed
+
+	e.pc = val
+
+	return 6, nil
 }
 
 execute_call_cond_imm16 :: #force_inline proc(
@@ -1023,7 +1035,43 @@ execute_call_cond_imm16 :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	val_bytes := access_range(e, e.pc, e.pc + 2) or_return
+	defer delete(val_bytes)
+
+	e.pc += 2
+
+	stack_push_u16(e, e.pc + 1) or_return
+
+	val, ok := endian.get_u16(val_bytes, .Little)
+	if !ok do return 0, .Instruction_Not_Parsed
+
+	cond := (opcode & 0x18) >> 3
+	f := byte(e.af)
+
+	switch cond {
+	case 0:
+		if f & FLAG_ZERO != FLAG_ZERO {
+			e.pc = val
+			return 6, nil
+		}
+	case 1:
+		if f & FLAG_ZERO == FLAG_ZERO {
+			e.pc = val
+			return 6, nil
+		}
+	case 2:
+		if f & FLAG_FULL_CARRY != FLAG_FULL_CARRY {
+			e.pc = val
+			return 6, nil
+		}
+	case 3:
+		if f & FLAG_FULL_CARRY == FLAG_FULL_CARRY {
+			e.pc = val
+			return 6, nil
+		}
+	}
+
+	return 3, nil
 }
 
 execute_jp_hl :: #force_inline proc(
