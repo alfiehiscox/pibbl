@@ -1003,7 +1003,15 @@ execute_rst_tgt3 :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+
+	tgt3 := (opcode & 0x38) >> 3
+	vec := u16(tgt3) * 8
+
+	stack_push_u16(e, e.pc + 1) or_return
+
+	e.pc = vec
+
+	return 4, nil
 }
 
 execute_call_imm16 :: #force_inline proc(

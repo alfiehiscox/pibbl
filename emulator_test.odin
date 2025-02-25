@@ -1524,13 +1524,88 @@ test_execute_call_cond_imm16 :: proc(t: ^testing.T) {
 	addr, _ = stack_pop_u16(&e)
 	testing.expectf(t, addr == 4, "got=%d exp=%d", addr, 4)
 
-	//testing.expect(t, e.sp == sp)
+	testing.expect(t, e.sp == sp)
 
 }
 
 @(test)
 test_execute_rst_tgt3 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+	addr: u16
+
+	cycles, err = execute_block_3_instruction(&e, 0xC7)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 2, "got=%d exp=%d", addr, 2)
+
+	e.pc = 1
+	cycles, err = execute_block_3_instruction(&e, 0xCF)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0x08)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 2, "got=%d exp=%d", addr, 2)
+
+	e.pc = 1
+	cycles, err = execute_block_3_instruction(&e, 0xD7)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0x10)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 2, "got=%d exp=%d", addr, 2)
+
+	e.pc = 1
+	cycles, err = execute_block_3_instruction(&e, 0xDF)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0x18)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 2, "got=%d exp=%d", addr, 2)
+
+	e.pc = 1
+	cycles, err = execute_block_3_instruction(&e, 0xE7)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0x20)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 2, "got=%d exp=%d", addr, 2)
+
+	e.pc = 1
+	cycles, err = execute_block_3_instruction(&e, 0xEF)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 2, "got=%d exp=%d", addr, 2)
+
+	e.pc = 1
+	cycles, err = execute_block_3_instruction(&e, 0xF7)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0x30)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 2, "got=%d exp=%d", addr, 2)
+
+	e.pc = 1
+	cycles, err = execute_block_3_instruction(&e, 0xFF)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0x38)
+
+	addr, _ = stack_pop_u16(&e)
+	testing.expectf(t, addr == 2, "got=%d exp=%d", addr, 2)
 }
 
 @(test)
