@@ -1310,12 +1310,61 @@ test_execute_adc_a_imm8 :: proc(t: ^testing.T) {
 
 @(test)
 test_execute_ret_cond :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	sp_0 := e.sp
+	_ = stack_push_u16(&e, 0xCCCC)
+	sp_1 := e.sp
+	_ = stack_push_u16(&e, 0x0024)
+
+	// ret if nz - fail 
+	e.pc = 1
+	e.af = 0 | FLAG_ZERO
+	cycles, err = execute_block_3_instruction(&e, 0xC0)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.pc == 1)
+
+	// Jump if nz - success 
+	e.pc = 1
+	e.af = 0
+	cycles, err = execute_block_3_instruction(&e, 0xC0)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 5)
+	testing.expect(t, e.pc == 0x24)
+	testing.expect(t, e.sp == sp_1)
+
+	// Jump if c - success 
+	e.pc = 1
+	e.af = 0 | FLAG_FULL_CARRY
+	cycles, err = execute_block_3_instruction(&e, 0xD8)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 5)
+	testing.expect(t, e.pc == 0xCCCC)
+	testing.expect(t, e.sp == sp_0)
 }
 
 @(test)
 test_execute_ret :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	e.pc = 1
+
+	cycles: int
+	err: Emulator_Error
+
+	_ = stack_push_u16(&e, 0xCCCC)
+	sp := e.sp
+	_ = stack_push_u16(&e, 0x0024)
+
+	cycles, err = execute_block_3_instruction(&e, 0xC9)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0x0024)
+	testing.expect(t, e.sp == sp)
 }
 
 @(test)

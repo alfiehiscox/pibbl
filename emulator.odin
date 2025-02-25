@@ -1108,7 +1108,8 @@ execute_ret :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	e.pc = stack_pop_u16(e) or_return
+	return 4, nil
 }
 
 execute_reti :: #force_inline proc(
@@ -1129,7 +1130,33 @@ execute_ret_cond :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	cond := (opcode & 0x18) >> 3
+	f := byte(e.af)
+
+	switch cond {
+	case 0:
+		if f & FLAG_ZERO != FLAG_ZERO {
+			e.pc = stack_pop_u16(e) or_return
+			return 5, nil
+		}
+	case 1:
+		if f & FLAG_ZERO == FLAG_ZERO {
+			e.pc = stack_pop_u16(e) or_return
+			return 5, nil
+		}
+	case 2:
+		if f & FLAG_FULL_CARRY != FLAG_FULL_CARRY {
+			e.pc = stack_pop_u16(e) or_return
+			return 5, nil
+		}
+	case 3:
+		if f & FLAG_FULL_CARRY == FLAG_FULL_CARRY {
+			e.pc = stack_pop_u16(e) or_return
+			return 5, nil
+		}
+	}
+
+	return 2, nil
 }
 
 execute_block_3_arithmetic_instruction :: #force_inline proc(
