@@ -1021,7 +1021,18 @@ execute_pop_r16stk :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	switch (opcode & 0x30) >> 4 {
+	case 0:
+		e.bc = stack_pop_u16(e) or_return
+	case 1:
+		e.de = stack_pop_u16(e) or_return
+	case 2:
+		e.hl = stack_pop_u16(e) or_return
+	case 3:
+		e.af = stack_pop_u16(e) or_return
+	}
+
+	return 3, nil
 }
 
 execute_push_r16stk :: #force_inline proc(
@@ -1031,7 +1042,21 @@ execute_push_r16stk :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+
+	switch (opcode & 0x30) >> 4 {
+	case 0:
+		stack_push_u16(e, e.bc) or_return
+	case 1:
+		stack_push_u16(e, e.de) or_return
+	case 2:
+		stack_push_u16(e, e.hl) or_return
+	case 3:
+		stack_push_u16(e, e.af) or_return
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
+
+	return 4, nil
 }
 
 execute_rst_tgt3 :: #force_inline proc(

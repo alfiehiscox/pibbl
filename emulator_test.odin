@@ -1609,6 +1609,100 @@ test_execute_rst_tgt3 :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_execute_push_r16stk :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+	sp := e.sp
+
+	value: u16
+	cycles: int
+	err: Emulator_Error
+
+	// push bc
+	e.bc = 0xAAAA
+	cycles, err = execute_block_3_instruction(&e, 0xC5)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.sp == sp - 2)
+
+	value, _ = stack_pop_u16(&e)
+	testing.expectf(t, value == e.bc, "got=%d exp=%d", value, 2)
+
+	// push de 
+	e.de = 0xBBBB
+	cycles, err = execute_block_3_instruction(&e, 0xD5)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.sp == sp - 2)
+
+	value, _ = stack_pop_u16(&e)
+	testing.expectf(t, value == e.de, "got=%d exp=%d", value, e.de)
+
+	// push hl 
+	e.hl = 0xCCCC
+	cycles, err = execute_block_3_instruction(&e, 0xE5)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.sp == sp - 2)
+
+	value, _ = stack_pop_u16(&e)
+	testing.expectf(t, value == e.hl, "got=%d exp=%d", value, e.hl)
+
+	// push af 
+	e.af = 0xDDDD
+	cycles, err = execute_block_3_instruction(&e, 0xF5)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.sp == sp - 2)
+
+	value, _ = stack_pop_u16(&e)
+	testing.expectf(t, value == e.af, "got=%d exp=%d", value, e.af)
+}
+
+@(test)
+test_execute_pop_r16stk :: proc(t: ^testing.T) {
+	e: Emulator
+	e.pc = 1
+	sp := e.sp
+
+	addr: u16
+	cycles: int
+	err: Emulator_Error
+
+	// pop bc
+	stack_push_u16(&e, 0xAAAA)
+	cycles, err = execute_block_3_instruction(&e, 0xC1)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, sp == e.sp)
+	testing.expect(t, e.bc == 0xAAAA)
+
+	// pop de 
+	stack_push_u16(&e, 0xBBBB)
+	cycles, err = execute_block_3_instruction(&e, 0xD1)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, sp == e.sp)
+	testing.expect(t, e.de == 0xBBBB)
+
+	// pop hl 
+	stack_push_u16(&e, 0xCCCC)
+	cycles, err = execute_block_3_instruction(&e, 0xE1)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, sp == e.sp)
+	testing.expect(t, e.hl == 0xCCCC)
+
+	// pop af 
+	stack_push_u16(&e, 0xDDDD)
+	cycles, err = execute_block_3_instruction(&e, 0xF1)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, sp == e.sp)
+	testing.expect(t, e.af == 0xDDDD)
+}
+
+@(test)
 test_stack_byte :: proc(t: ^testing.T) {
 	e: Emulator
 	e.sp = 0xFFFE
@@ -1682,14 +1776,4 @@ test_stack_u16 :: proc(t: ^testing.T) {
 	testing.expect(t, b == 0x01)
 
 	testing.expect(t, e.sp == 0xFFFE)
-}
-
-@(test)
-test_execute_push_r16stk :: proc(t: ^testing.T) {
-	testing.fail(t)
-}
-
-@(test)
-test_execute_pop_r16stk :: proc(t: ^testing.T) {
-	testing.fail(t)
 }
