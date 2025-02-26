@@ -1683,3 +1683,13 @@ test_stack_u16 :: proc(t: ^testing.T) {
 
 	testing.expect(t, e.sp == 0xFFFE)
 }
+
+@(test)
+test_execute_push_r16stk :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_execute_pop_r16stk :: proc(t: ^testing.T) {
+	testing.fail(t)
+}

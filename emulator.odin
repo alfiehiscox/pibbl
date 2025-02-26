@@ -991,9 +991,47 @@ execute_block_3_instruction :: #force_inline proc(
 		return execute_call_imm16(e, opcode) // call imm16 
 	case 0xC7, 0xCF, 0xD7, 0xDF, 0xE7, 0xEF, 0xF7, 0xFF:
 		return execute_rst_tgt3(e, opcode) // rst tgt3
+	case 0xC1, 0xD1, 0xE1, 0xF1:
+		return execute_pop_r16stk(e, opcode) // pop r16stk
+	case 0xC5, 0xD5, 0xE5, 0xF5:
+		return execute_push_r16stk(e, opcode) // push r16stk
+	case 0xCB:
+		prefix_opcode := access(e, e.pc) or_return
+		e.pc += 1
+		return execute_prefix_instruction(e, prefix_opcode) // prefix
 	case:
 		return 0, .Instruction_Not_Emulated
 	}
+}
+
+execute_prefix_instruction :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycle: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_pop_r16stk :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycle: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_push_r16stk :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycle: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
 }
 
 execute_rst_tgt3 :: #force_inline proc(
