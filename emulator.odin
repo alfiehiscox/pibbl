@@ -1004,16 +1004,6 @@ execute_block_3_instruction :: #force_inline proc(
 	}
 }
 
-execute_prefix_instruction :: #force_inline proc(
-	e: ^Emulator,
-	opcode: byte,
-) -> (
-	cycle: int,
-	err: Emulator_Error,
-) {
-	unimplemented()
-}
-
 execute_pop_r16stk :: #force_inline proc(
 	e: ^Emulator,
 	opcode: byte,
@@ -1332,6 +1322,226 @@ execute_block_3_arithmetic_instruction :: #force_inline proc(
 	}
 
 	return 2, nil
+}
+
+execute_prefix_instruction :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycle: int,
+	err: Emulator_Error,
+) {
+	switch opcode {
+	case 0x00 ..= 0x07:
+		return execute_rlc_r8(e, opcode)
+	case 0x08 ..= 0x0F:
+		return execute_rrc_r8(e, opcode)
+	case 0x10 ..= 0x17:
+		return execute_rl_r8(e, opcode)
+	case 0x18 ..= 0x1F:
+		return execute_rr_r8(e, opcode)
+	case 0x20 ..= 0x27:
+		return execute_sla_r8(e, opcode)
+	case 0x28 ..= 0x2F:
+		return execute_sra_r8(e, opcode)
+	case 0x30 ..= 0x37:
+		return execute_swap_r8(e, opcode)
+	case 0x38 ..= 0x3F:
+		return execute_srl_r8(e, opcode)
+	case 0x40 ..= 0x7F:
+		return execute_bit_b3_r8(e, opcode)
+	case 0x80 ..= 0xBF:
+		return execute_res_b3_r8(e, opcode)
+	case 0xC0 ..= 0xFF:
+		return execute_set_b3_r8(e, opcode)
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
+}
+
+execute_rlc_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	reg := opcode & 0x07
+	switch reg {
+	case 0:
+		b := byte((e.bc & 0xFF00) >> 8)
+		most := (b & 0x80) >> 7
+		new_b := b << 1 | most
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_b == 0 do new_f |= FLAG_ZERO
+		e.bc = (u16(new_b) << 8) | (e.bc & 0xFF00)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 1:
+		c := byte(e.bc)
+		most := (c & 0x80) >> 7
+		new_c := c << 1 | most
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_c == 0 do new_f |= FLAG_ZERO
+		e.bc = (e.bc & 0xFF00) | u16(new_c)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 2:
+		d := byte((e.de & 0xFF00) >> 8)
+		most := (d & 0x80) >> 7
+		new_d := d << 1 | most
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_d == 0 do new_f |= FLAG_ZERO
+		e.de = (u16(new_d) << 8) | (e.de & 0xFF00)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 3:
+		e2 := byte(e.de)
+		most := (e2 & 0x80) >> 7
+		new_e := e2 << 1 | most
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_e == 0 do new_f |= FLAG_ZERO
+		e.de = (e.de & 0xFF00) | u16(new_e)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 4:
+		h := byte((e.hl & 0xFF00) >> 8)
+		most := (h & 0x80) >> 7
+		new_h := h << 1 | most
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_h == 0 do new_f |= FLAG_ZERO
+		e.hl = (u16(new_h) << 8) | (e.hl & 0xFF00)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 5:
+		l := byte(e.hl)
+		most := (l & 0x80) >> 7
+		new_l := l << 1 | most
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_l == 0 do new_f |= FLAG_ZERO
+		e.hl = (e.hl & 0xFF00) | u16(new_l)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 6:
+		byte := access(e, e.hl) or_return
+		most := (byte & 0x80) >> 7
+		new_byte := byte << 1 | most
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_byte == 0 do new_f |= FLAG_ZERO
+		write(e, e.hl, new_byte) or_return
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 4, nil
+	case 7:
+		a := byte((e.af & 0xFF00) >> 8)
+		most := (a & 0x80) >> 7
+		new_a := a << 1 | most
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_a == 0 do new_f |= FLAG_ZERO
+		e.af = (u16(new_a) << 8) | u16(new_f)
+		return 2, nil
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
+}
+
+execute_rrc_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_rl_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_rr_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_sla_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_sra_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_swap_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_srl_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_bit_b3_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_res_b3_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_set_b3_r8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycles: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
 }
 
 tick_peripherals :: proc(e: ^Emulator, mcycles: int) -> Emulator_Error {
