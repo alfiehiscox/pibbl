@@ -1823,19 +1823,152 @@ test_prefix_rlc_r8 :: proc(t: ^testing.T) {
 	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
 }
 
-//@(test)
+@(test)
 test_prefix_rrc_r8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+
+	cycles: int
+	err: Emulator_Error
+
+	e.af = 0
+	e.bc = 0xFF00
+	cycles, err = execute_prefix_instruction(&e, 0x8)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.bc == 0xFF00)
+	testing.expectf(t, byte(e.af) == FLAG_FULL_CARRY, "exp=%b got=%b", FLAG_FULL_CARRY, byte(e.af))
+
+	e.af = 0
+	e.hl = 0x0080
+	cycles, err = execute_prefix_instruction(&e, 0xD)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.hl == 0x0040, "exp=%X act=%X", 0x0040, e.hl)
+	testing.expect(t, byte(e.af) == 0)
+
+	e.af = 0
+	e.bc = 0x0001
+	cycles, err = execute_prefix_instruction(&e, 0x9)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.bc == 0x0080, "exp=%X act=%X", 0x0080, e.bc)
+	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
+
+	e.af = 0
+	e.de = 0x0000
+	cycles, err = execute_prefix_instruction(&e, 0xB)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.de == 0x0000)
+	testing.expect(t, byte(e.af) == FLAG_ZERO)
+
+	e.af = 0
+	e.hl = 0xC001
+	e.wram[1] = 0xAB
+	cycles, err = execute_prefix_instruction(&e, 0xE)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.wram[1] == 0xD5)
+	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
 }
 
-//@(test)
+@(test)
 test_prefix_rl_r8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+
+	cycles: int
+	err: Emulator_Error
+
+	// rl b
+	e.af = 0
+	e.bc = 0xFF00
+	cycles, err = execute_prefix_instruction(&e, 0x10)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.bc == 0xFE00)
+	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
+
+	// rl l 
+	e.af = 0
+	e.hl = 0x0080
+	cycles, err = execute_prefix_instruction(&e, 0x15)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.hl == 0x0000, "exp=%X act=%X", 0x0000, e.hl)
+	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY | FLAG_ZERO)
+
+	// rl e 
+	e.af = 0 | FLAG_FULL_CARRY
+	e.de = 0x0000
+	cycles, err = execute_prefix_instruction(&e, 0x13)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.de == 0x0001)
+	testing.expect(t, byte(e.af) == 0x00)
+
+	// rl [hl]
+	e.af = 0
+	e.hl = 0xC001
+	e.wram[1] = 0xAB // 0b10101011
+	cycles, err = execute_prefix_instruction(&e, 0x16)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.wram[1] == 0x56)
+	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
 }
 
-//@(test)
+@(test)
 test_prefix_rr_r8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+
+	cycles: int
+	err: Emulator_Error
+
+	// rr b 
+	e.af = 0
+	e.bc = 0xFF00
+	cycles, err = execute_prefix_instruction(&e, 0x18)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.bc == 0x7F00)
+	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
+
+	// rr l 
+	e.af = 0
+	e.hl = 0x0080
+	cycles, err = execute_prefix_instruction(&e, 0x1D)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.hl == 0x0040, "exp=%X act=%X", 0x0040, e.hl)
+	testing.expect(t, byte(e.af) == 0)
+
+	// rr c
+	e.af = 0
+	e.bc = 0x0001
+	cycles, err = execute_prefix_instruction(&e, 0x19)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.bc == 0x0000, "exp=%X act=%X", 0x0000, e.bc)
+	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY | FLAG_ZERO)
+
+	// rr e 
+	e.af = 0 | FLAG_FULL_CARRY
+	e.de = 0x0000
+	cycles, err = execute_prefix_instruction(&e, 0x1B)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.de == 0x0080)
+	testing.expect(t, byte(e.af) == 0)
+
+	// rr [hl]
+	e.af = 0
+	e.hl = 0xC001
+	e.wram[1] = 0xAB
+	cycles, err = execute_prefix_instruction(&e, 0x1E)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.wram[1] == 0x55)
+	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
 }
 
 //@(test)

@@ -1374,7 +1374,7 @@ execute_rlc_r8 :: #force_inline proc(
 		new_b := b << 1 | most
 		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
 		if new_b == 0 do new_f |= FLAG_ZERO
-		e.bc = (u16(new_b) << 8) | (e.bc & 0xFF00)
+		e.bc = (u16(new_b) << 8) | (e.bc & 0xFF)
 		e.af = (e.af & 0xFF00) | u16(new_f)
 		return 2, nil
 	case 1:
@@ -1392,7 +1392,7 @@ execute_rlc_r8 :: #force_inline proc(
 		new_d := d << 1 | most
 		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
 		if new_d == 0 do new_f |= FLAG_ZERO
-		e.de = (u16(new_d) << 8) | (e.de & 0xFF00)
+		e.de = (u16(new_d) << 8) | (e.de & 0xFF)
 		e.af = (e.af & 0xFF00) | u16(new_f)
 		return 2, nil
 	case 3:
@@ -1410,7 +1410,7 @@ execute_rlc_r8 :: #force_inline proc(
 		new_h := h << 1 | most
 		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
 		if new_h == 0 do new_f |= FLAG_ZERO
-		e.hl = (u16(new_h) << 8) | (e.hl & 0xFF00)
+		e.hl = (u16(new_h) << 8) | (e.hl & 0xFF)
 		e.af = (e.af & 0xFF00) | u16(new_f)
 		return 2, nil
 	case 5:
@@ -1451,7 +1451,82 @@ execute_rrc_r8 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	reg := opcode & 0x07
+	switch reg {
+	case 0:
+		b := byte((e.bc & 0xFF00) >> 8)
+		least := b & 0x01 << 7
+		new_b := b >> 1 | least
+		new_f := least != 0x80 ? 0 : FLAG_FULL_CARRY
+		if new_b == 0 do new_f |= FLAG_ZERO
+		e.bc = (u16(new_b) << 8) | (e.bc & 0xFF)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 1:
+		c := byte(e.bc)
+		least := c & 0x01 << 7
+		new_c := c >> 1 | least
+		new_f := least != 0x80 ? 0 : FLAG_FULL_CARRY
+		if new_c == 0 do new_f |= FLAG_ZERO
+		e.bc = (e.bc & 0xFF00) | u16(new_c)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 2:
+		d := byte((e.de & 0xFF00) >> 8)
+		least := d & 0x01 << 7
+		new_d := d >> 1 | least
+		new_f := least != 0x80 ? 0 : FLAG_FULL_CARRY
+		if new_d == 0 do new_f |= FLAG_ZERO
+		e.de = (u16(new_d) << 8) | (e.de & 0xFF)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 3:
+		e2 := byte(e.de)
+		least := e2 & 0x01 << 7
+		new_e := e2 >> 1 | least
+		new_f := least != 0x80 ? 0 : FLAG_FULL_CARRY
+		if new_e == 0 do new_f |= FLAG_ZERO
+		e.de = (e.de & 0xFF00) | u16(new_e)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 4:
+		h := byte((e.hl & 0xFF00) >> 8)
+		least := h & 0x01 << 7
+		new_h := h >> 1 | least
+		new_f := least != 0x80 ? 0 : FLAG_FULL_CARRY
+		if new_h == 0 do new_f |= FLAG_ZERO
+		e.hl = (u16(new_h) << 8) | (e.hl & 0xFF)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 5:
+		l := byte(e.hl)
+		least := l & 0x01 << 7
+		new_l := l >> 1 | least
+		new_f := least != 0x80 ? 0 : FLAG_FULL_CARRY
+		if new_l == 0 do new_f |= FLAG_ZERO
+		e.hl = (e.hl & 0xFF00) | u16(new_l)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 6:
+		byte := access(e, e.hl) or_return
+		least := byte & 0x01 << 7
+		new_byte := byte >> 1 | least
+		new_f := least != 0x80 ? 0 : FLAG_FULL_CARRY
+		if new_byte == 0 do new_f |= FLAG_ZERO
+		write(e, e.hl, new_byte) or_return
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 4, nil
+	case 7:
+		a := byte((e.af & 0xFF00) >> 8)
+		least := a & 0x01 << 7
+		new_a := a >> 1 | least
+		new_f := least != 0x80 ? 0 : FLAG_FULL_CARRY
+		if new_a == 0 do new_f |= FLAG_ZERO
+		e.af = (u16(new_a) << 8) | u16(new_f)
+		return 2, nil
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
 }
 
 execute_rl_r8 :: #force_inline proc(
@@ -1461,7 +1536,90 @@ execute_rl_r8 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	reg := opcode & 0x07
+	switch reg {
+	case 0:
+		b := byte((e.bc & 0xFF00) >> 8)
+		most := (b & 0x80) >> 7
+		carry := byte((e.af & FLAG_FULL_CARRY) >> 4)
+		new_b := b << 1 | carry
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_b == 0 do new_f |= FLAG_ZERO
+		e.bc = (u16(new_b) << 8) | (e.bc & 0xFF)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 1:
+		c := byte(e.bc)
+		most := (c & 0x80) >> 7
+		carry := byte((e.af & FLAG_FULL_CARRY) >> 4)
+		new_c := c << 1 | carry
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_c == 0 do new_f |= FLAG_ZERO
+		e.bc = (e.bc & 0xFF00) | u16(new_c)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 2:
+		d := byte((e.de & 0xFF00) >> 8)
+		most := (d & 0x80) >> 7
+		carry := byte((e.af & FLAG_FULL_CARRY) >> 4)
+		new_d := d << 1 | carry
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_d == 0 do new_f |= FLAG_ZERO
+		e.de = (u16(new_d) << 8) | (e.de & 0xFF)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 3:
+		e2 := byte(e.de)
+		most := (e2 & 0x80) >> 7
+		carry := byte((e.af & FLAG_FULL_CARRY) >> 4)
+		new_e := e2 << 1 | carry
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_e == 0 do new_f |= FLAG_ZERO
+		e.de = (e.de & 0xFF00) | u16(new_e)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 4:
+		h := byte((e.hl & 0xFF00) >> 8)
+		most := (h & 0x80) >> 7
+		carry := byte((e.af & FLAG_FULL_CARRY) >> 4)
+		new_h := h << 1 | carry
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_h == 0 do new_f |= FLAG_ZERO
+		e.hl = (u16(new_h) << 8) | (e.hl & 0xFF)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 5:
+		l := byte(e.hl)
+		most := (l & 0x80) >> 7
+		carry := byte((e.af & FLAG_FULL_CARRY) >> 4)
+		new_l := l << 1 | carry
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_l == 0 do new_f |= FLAG_ZERO
+		e.hl = (e.hl & 0xFF00) | u16(new_l)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 6:
+		byte1 := access(e, e.hl) or_return
+		most := (byte1 & 0x80) >> 7
+		carry := byte((e.af & FLAG_FULL_CARRY) >> 4)
+		new_byte := byte1 << 1 | carry
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_byte == 0 do new_f |= FLAG_ZERO
+		write(e, e.hl, new_byte) or_return
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 4, nil
+	case 7:
+		a := byte((e.af & 0xFF00) >> 8)
+		most := (a & 0x80) >> 7
+		carry := byte((e.af & FLAG_FULL_CARRY) >> 4)
+		new_a := a << 1 | carry
+		new_f := most == 0 ? 0 : FLAG_FULL_CARRY
+		if new_a == 0 do new_f |= FLAG_ZERO
+		e.af = (u16(new_a) << 8) | u16(new_f)
+		return 2, nil
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
 }
 
 execute_rr_r8 :: #force_inline proc(
@@ -1471,7 +1629,90 @@ execute_rr_r8 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	reg := opcode & 0x07
+	switch reg {
+	case 0:
+		b := byte((e.bc & 0xFF00) >> 8)
+		least := b & 0x01
+		carry := byte((e.af & FLAG_FULL_CARRY) << 3)
+		new_b := b >> 1 | carry
+		new_f := least == 0 ? 0 : FLAG_FULL_CARRY
+		if new_b == 0 do new_f |= FLAG_ZERO
+		e.bc = (u16(new_b) << 8) | (e.bc & 0xFF)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 1:
+		c := byte(e.bc)
+		least := c & 0x01
+		carry := byte((e.af & FLAG_FULL_CARRY) << 3)
+		new_c := c >> 1 | carry
+		new_f := least == 0 ? 0 : FLAG_FULL_CARRY
+		if new_c == 0 do new_f |= FLAG_ZERO
+		e.bc = (e.bc & 0xFF00) | u16(new_c)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 2:
+		d := byte((e.de & 0xFF00) >> 8)
+		least := d & 0x01
+		carry := byte((e.af & FLAG_FULL_CARRY) << 3)
+		new_d := d >> 1 | carry
+		new_f := least == 0 ? 0 : FLAG_FULL_CARRY
+		if new_d == 0 do new_f |= FLAG_ZERO
+		e.de = (u16(new_d) << 8) | (e.de & 0xFF)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 3:
+		e2 := byte(e.de)
+		least := e2 & 0x01
+		carry := byte((e.af & FLAG_FULL_CARRY) << 3)
+		new_e := e2 >> 1 | carry
+		new_f := least == 0 ? 0 : FLAG_FULL_CARRY
+		if new_e == 0 do new_f |= FLAG_ZERO
+		e.de = (e.de & 0xFF00) | u16(new_e)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 4:
+		h := byte((e.hl & 0xFF00) >> 8)
+		least := h & 0x01
+		carry := byte((e.af & FLAG_FULL_CARRY) << 3)
+		new_h := h >> 1 | carry
+		new_f := least == 0 ? 0 : FLAG_FULL_CARRY
+		if new_h == 0 do new_f |= FLAG_ZERO
+		e.hl = (u16(new_h) << 8) | (e.hl & 0xFF)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 5:
+		l := byte(e.hl)
+		least := l & 0x01
+		carry := byte((e.af & FLAG_FULL_CARRY) << 3)
+		new_l := l >> 1 | carry
+		new_f := least == 0 ? 0 : FLAG_FULL_CARRY
+		if new_l == 0 do new_f |= FLAG_ZERO
+		e.hl = (e.hl & 0xFF00) | u16(new_l)
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 6:
+		byte1 := access(e, e.hl) or_return
+		least := byte1 & 0x01
+		carry := byte((e.af & FLAG_FULL_CARRY) << 3)
+		new_byte := byte1 >> 1 | carry
+		new_f := least == 0 ? 0 : FLAG_FULL_CARRY
+		if new_byte == 0 do new_f |= FLAG_ZERO
+		write(e, e.hl, new_byte) or_return
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 4, nil
+	case 7:
+		a := byte((e.af & 0xFF00) >> 8)
+		least := a & 0x01
+		carry := byte((e.af & FLAG_FULL_CARRY) << 3)
+		new_a := a >> 1 | carry
+		new_f := least == 0 ? 0 : FLAG_FULL_CARRY
+		if new_a == 0 do new_f |= FLAG_ZERO
+		e.af = (u16(new_a) << 8) | u16(new_f)
+		return 2, nil
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
 }
 
 execute_sla_r8 :: #force_inline proc(
