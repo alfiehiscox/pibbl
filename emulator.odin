@@ -1898,7 +1898,67 @@ execute_swap_r8 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	reg := opcode & 0x07
+	switch reg {
+	case 0:
+		b := byte((e.bc & 0xFF00) >> 8)
+		b_high, b_low := (b & 0xF0) >> 4, b & 0x0F
+		new_b := (b_low << 4) | b_high
+		e.bc = (u16(new_b) << 8) | (e.bc & 0x00FF)
+		if new_b == 0 do e.af = (e.af & 0xFF00) | FLAG_ZERO
+		return 2, nil
+	case 1:
+		c := byte(e.bc)
+		c_high, c_low := (c & 0xF0) >> 4, c & 0x0F
+		new_c := (c_low << 4) | c_high
+		e.bc = (e.bc & 0xFF00) | u16(new_c)
+		if new_c == 0 do e.af = (e.af & 0xFF00) | FLAG_ZERO
+		return 2, nil
+	case 2:
+		d := byte((e.de & 0xFF00) >> 8)
+		d_high, d_low := (d & 0xF0) >> 4, d & 0x0F
+		new_d := (d_low << 4) | d_high
+		e.de = (u16(new_d) << 8) | (e.de & 0x00FF)
+		if new_d == 0 do e.af = (e.af & 0xFF00) | FLAG_ZERO
+		return 2, nil
+	case 3:
+		e1 := byte(e.de)
+		e1_high, e1_low := (e1 & 0xF0) >> 4, e1 & 0x0F
+		new_e1 := (e1_low << 4) | e1_high
+		e.de = (e.de & 0xFF00) | u16(new_e1)
+		if new_e1 == 0 do e.af = (e.af & 0xFF00) | FLAG_ZERO
+		return 2, nil
+	case 4:
+		h := byte((e.hl & 0xFF00) >> 8)
+		h_high, h_low := (h & 0xF0) >> 4, h & 0x0F
+		new_h := (h_low << 4) | h_high
+		e.hl = (u16(new_h) << 8) | (e.hl & 0x00FF)
+		if new_h == 0 do e.af = (e.af & 0xFF00) | FLAG_ZERO
+		return 2, nil
+	case 5:
+		l := byte(e.hl)
+		l_high, l_low := (l & 0xF0) >> 4, l & 0x0F
+		new_l := (l_low << 4) | l_high
+		e.hl = (e.hl & 0xFF00) | u16(new_l)
+		if new_l == 0 do e.af = (e.af & 0xFF00) | FLAG_ZERO
+		return 2, nil
+	case 6:
+		byte := access(e, e.hl) or_return
+		byte_high, byte_low := (byte & 0xF0) >> 4, byte & 0x0F
+		new_byte := (byte_low << 4) | byte_high
+		write(e, e.hl, new_byte) or_return
+		if new_byte == 0 do e.af = (e.af & 0xFF00) | FLAG_ZERO
+		return 4, nil
+	case 7:
+		a := byte((e.bc & 0xFF00) >> 8)
+		a_high, a_low := (a & 0xF0) >> 4, a & 0x0F
+		new_a := (a_low << 4) | a_high
+		e.af = (u16(new_a) << 8) | (e.af & 0x00FF)
+		if new_a == 0 do e.af = FLAG_ZERO
+		return 2, nil
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
 }
 
 execute_srl_r8 :: #force_inline proc(

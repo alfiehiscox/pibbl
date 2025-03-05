@@ -2042,9 +2042,36 @@ test_prefix_sra_r8 :: proc(t: ^testing.T) {
 	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
 }
 
-//@(test)
+@(test)
 test_prefix_swap_r8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+
+	cycles: int
+	err: Emulator_Error
+
+	// swap b
+	e.bc = 0xABCD
+	cycles, err = execute_prefix_instruction(&e, 0x30)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.bc == 0xBACD)
+
+	// swap l
+	e.af = 0xBB00
+	e.hl = 0xAA00
+	cycles, err = execute_prefix_instruction(&e, 0x35)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.hl == 0xAA00)
+	testing.expect(t, e.af == 0xBB00 | FLAG_ZERO)
+
+	// swap [hl]
+	e.hl = 0xC002
+	e.wram[2] = 0xCF
+	cycles, err = execute_prefix_instruction(&e, 0x36)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.wram[2] == 0xFC)
 }
 
 //@(test)
