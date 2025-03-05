@@ -1968,7 +1968,74 @@ execute_srl_r8 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	reg := opcode & 0x07
+	switch reg {
+	case 0:
+		b := byte((e.bc & 0xFF00) >> 8)
+		least := b & 0x1
+		e.bc = u16(b >> 1) << 8 | (e.bc & 0x00FF)
+		new_f := least == 1 ? FLAG_FULL_CARRY : 0
+		if b == 1 do new_f |= FLAG_ZERO
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 1:
+		c := byte(e.bc)
+		least := c & 0x1
+		e.bc = (e.bc & 0xFF00) | u16(c >> 1)
+		new_f := least == 1 ? FLAG_FULL_CARRY : 0
+		if c == 1 do new_f |= FLAG_ZERO
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 2:
+		d := byte((e.de & 0xFF00) >> 8)
+		least := d & 0x1
+		e.de = u16(d >> 1) << 8 | (e.de & 0x00FF)
+		new_f := least == 1 ? FLAG_FULL_CARRY : 0
+		if d == 1 do new_f |= FLAG_ZERO
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 3:
+		e1 := byte(e.de)
+		least := e1 & 0x1
+		e.de = (e.de & 0xFF00) | u16(e1 >> 1)
+		new_f := least == 1 ? FLAG_FULL_CARRY : 0
+		if e1 == 1 do new_f |= FLAG_ZERO
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 4:
+		h := byte((e.hl & 0xFF00) >> 8)
+		least := h & 0x1
+		e.hl = u16(h >> 1) << 8 | (e.hl & 0x00FF)
+		new_f := least == 1 ? FLAG_FULL_CARRY : 0
+		if h == 1 do new_f |= FLAG_ZERO
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 5:
+		l := byte(e.hl)
+		least := l & 0x1
+		e.hl = (e.hl & 0xFF00) | u16(l >> 1)
+		new_f := least == 1 ? FLAG_FULL_CARRY : 0
+		if l == 1 do new_f |= FLAG_ZERO
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 2, nil
+	case 6:
+		byte := access(e, e.hl) or_return
+		least := byte & 0x01
+		write(e, e.hl, byte >> 1) or_return
+		new_f := least == 1 ? FLAG_FULL_CARRY : 0
+		if byte == 1 do new_f |= FLAG_ZERO
+		e.af = (e.af & 0xFF00) | u16(new_f)
+		return 4, nil
+	case 7:
+		a := byte((e.af & 0xFF00) >> 8)
+		least := a & 0x1
+		new_f := least == 1 ? FLAG_FULL_CARRY : 0
+		if a == 1 do new_f |= FLAG_ZERO
+		e.af = (u16(a >> 1) << 8) | u16(new_f)
+		return 2, nil
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
 }
 
 execute_bit_b3_r8 :: #force_inline proc(
