@@ -970,6 +970,7 @@ execute_block_3_instruction :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
+	// 0123456789ABCDEF
 	switch opcode {
 	case 0xC6, 0xCE, 0xD6, 0xDE, 0xE6, 0xEE, 0xF6, 0xFE:
 		return execute_block_3_arithmetic_instruction(e, opcode)
@@ -999,9 +1000,81 @@ execute_block_3_instruction :: #force_inline proc(
 		prefix_opcode := access(e, e.pc) or_return
 		e.pc += 1
 		return execute_prefix_instruction(e, prefix_opcode) // prefix
+	case 0xE2:
+		return execute_ldh_c_a(e, opcode) // ldh [c], a
+	case 0xE0:
+		return execute_ldh_imm8_a(e, opcode) // ldh [imm8], a
+	case 0xEA:
+		return execute_ld_imm16_a(e, opcode) // ld [imm16], a
+	case 0xF2:
+		return execute_ldh_a_c(e, opcode) // ldh a, [c]
+	case 0xF0:
+		return execute_ldh_a_imm8(e, opcode) // ldh a, [imm8]
+	case 0xFA:
+		return execute_a_imm16(e, opcode) // ld a, [imm16]
 	case:
 		return 0, .Instruction_Not_Emulated
 	}
+}
+
+execute_a_imm16 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycle: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_ldh_a_imm8 :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycle: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_ldh_a_c :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycle: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_ld_imm16_a :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycle: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_ldh_imm8_a :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycle: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
+}
+
+execute_ldh_c_a :: #force_inline proc(
+	e: ^Emulator,
+	opcode: byte,
+) -> (
+	cycle: int,
+	err: Emulator_Error,
+) {
+	unimplemented()
 }
 
 execute_pop_r16stk :: #force_inline proc(

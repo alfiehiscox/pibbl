@@ -2217,3 +2217,33 @@ test_prefix_set_b3_r8 :: proc(t: ^testing.T) {
 	testing.expect(t, cycles == 3)
 	testing.expect(t, e.wram[3] == 0x14)
 }
+
+@(test)
+test_ldh_c_a :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_ldh_imm8_a :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_ld_imm16_a :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_ld_a_c :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_ld_a_imm8 :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_a_imm16 :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
