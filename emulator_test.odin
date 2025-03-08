@@ -2077,7 +2077,6 @@ test_prefix_swap_r8 :: proc(t: ^testing.T) {
 @(test)
 test_prefix_srl_r8 :: proc(t: ^testing.T) {
 	e: Emulator
-
 	cycles: int
 	err: Emulator_Error
 
@@ -2123,17 +2122,98 @@ test_prefix_srl_r8 :: proc(t: ^testing.T) {
 	)
 }
 
-//@(test)
+@(test)
 test_prefix_bit_b3_r8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	cycles: int
+	err: Emulator_Error
+
+	// bit 3 c
+	e.af = 0
+	e.bc = 0b0000_0000_0001_1000
+	cycles, err = execute_prefix_instruction(&e, 0x59)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.af == FLAG_HALF_CARRY, "exp=%b act=%b", FLAG_HALF_CARRY, e.af)
+
+	// bit 7 l
+	e.af = 0
+	e.hl = 0b0000_0000_0010_1000
+	cycles, err = execute_prefix_instruction(&e, 0b01111101)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.af == FLAG_ZERO | FLAG_HALF_CARRY)
+
+	// bit 0 [hl]
+	e.af = 0
+	e.hl = 0xC003
+	e.wram[3] = 0x10
+	cycles, err = execute_prefix_instruction(&e, 0b01000110)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.af == FLAG_ZERO | FLAG_HALF_CARRY)
 }
 
-//@(test)
+@(test)
 test_prefix_res_b3_r8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	cycles: int
+	err: Emulator_Error
+
+	// res 3 c
+	e.af = 0
+	e.bc = 0b0000_0000_0001_1000
+	cycles, err = execute_prefix_instruction(&e, 0x99)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.bc == 0x0010, "exp=%b act=%b", 0x0010, e.bc)
+
+	// res 7 l
+	e.af = 0
+	e.hl = 0b0000_0000_0010_1000
+	cycles, err = execute_prefix_instruction(&e, 0xBD)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.hl == 0b0000_0000_0010_1000)
+
+	// res 4 [hl]
+	e.af = 0
+	e.hl = 0xC003
+	e.wram[3] = 0x10 // 00010000
+	cycles, err = execute_prefix_instruction(&e, 0xA6)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.wram[3] == 0)
 }
 
-//@(test)
+@(test)
 test_prefix_set_b3_r8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	cycles: int
+	err: Emulator_Error
+
+	// res 3 c
+	e.af = 0
+	e.bc = 0b0000_0000_0001_0000
+	cycles, err = execute_prefix_instruction(&e, 0xD9)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expectf(t, e.bc == 0x0018, "exp=%b act=%b", 0x0018, e.bc)
+
+	// res 7 l
+	e.af = 0
+	e.hl = 0b0000_0000_0010_1000
+	cycles, err = execute_prefix_instruction(&e, 0xFD)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.hl == 0b0000_0000_1010_1000)
+
+	// res 2 [hl]
+	e.af = 0
+	e.hl = 0xC003
+	e.wram[3] = 0x10 // 00010000
+	cycles, err = execute_prefix_instruction(&e, 0xD6)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.wram[3] == 0x14)
 }

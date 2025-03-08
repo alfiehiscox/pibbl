@@ -2045,7 +2045,43 @@ execute_bit_b3_r8 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	reg := opcode & 0x07
+	operand: byte
+	switch reg {
+	case 0:
+		operand = byte((e.bc & 0xFF00) >> 8)
+	case 1:
+		operand = byte(e.bc)
+	case 2:
+		operand = byte((e.de & 0xFF00) >> 8)
+	case 3:
+		operand = byte(e.de)
+	case 4:
+		operand = byte((e.hl & 0xFF00) >> 8)
+	case 5:
+		operand = byte(e.hl)
+	case 6:
+		operand = access(e, e.hl) or_return
+	case 7:
+		operand = byte((e.af & 0xFF00) >> 8)
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
+
+	new_f := FLAG_HALF_CARRY
+
+	index := (opcode & 0x38) >> 3
+	bit := (operand >> index) & 0x01
+
+	if bit == 0 do new_f |= FLAG_ZERO
+
+	e.af = (e.af & 0xFF00) | u16(new_f)
+
+	if reg == 6 {
+		return 3, nil
+	} else {
+		return 2, nil
+	}
 }
 
 execute_res_b3_r8 :: #force_inline proc(
@@ -2055,7 +2091,52 @@ execute_res_b3_r8 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	reg := opcode & 0x07
+	index := (opcode & 0x38) >> 3
+
+	operand: byte
+	switch reg {
+	case 0:
+		operand = byte((e.bc & 0xFF00) >> 8)
+		operand &= ~(1 << index)
+		e.bc = (u16(operand) << 8) | (e.bc & 0xFF00)
+	case 1:
+		operand = byte(e.bc)
+		operand &= ~(1 << index)
+		e.bc = (e.bc & 0xFF00) | u16(operand)
+	case 2:
+		operand = byte((e.de & 0xFF00) >> 8)
+		operand &= ~(1 << index)
+		e.de = (u16(operand) << 8) | (e.de & 0xFF00)
+	case 3:
+		operand = byte(e.de)
+		operand &= ~(1 << index)
+		e.de = (e.de & 0xFF00) | u16(operand)
+	case 4:
+		operand = byte((e.hl & 0xFF00) >> 8)
+		operand &= ~(1 << index)
+		e.hl = (u16(operand) << 8) | (e.hl & 0xFF00)
+	case 5:
+		operand = byte(e.hl)
+		operand &= ~(1 << index)
+		e.hl = (e.hl & 0xFF00) | u16(operand)
+	case 6:
+		operand = access(e, e.hl) or_return
+		operand &= ~(1 << index)
+		write(e, e.hl, operand) or_return
+	case 7:
+		operand = byte((e.af & 0xFF00) >> 8)
+		operand &= ~(1 << index)
+		e.af = (u16(operand) << 8) | (e.af & 0xFF00)
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
+
+	if reg == 6 {
+		return 3, nil
+	} else {
+		return 2, nil
+	}
 }
 
 execute_set_b3_r8 :: #force_inline proc(
@@ -2065,7 +2146,52 @@ execute_set_b3_r8 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	reg := opcode & 0x07
+	index := (opcode & 0x38) >> 3
+
+	operand: byte
+	switch reg {
+	case 0:
+		operand = byte((e.bc & 0xFF00) >> 8)
+		operand |= (1 << index)
+		e.bc = (u16(operand) << 8) | (e.bc & 0xFF00)
+	case 1:
+		operand = byte(e.bc)
+		operand |= (1 << index)
+		e.bc = (e.bc & 0xFF00) | u16(operand)
+	case 2:
+		operand = byte((e.de & 0xFF00) >> 8)
+		operand |= (1 << index)
+		e.de = (u16(operand) << 8) | (e.de & 0xFF00)
+	case 3:
+		operand = byte(e.de)
+		operand |= (1 << index)
+		e.de = (e.de & 0xFF00) | u16(operand)
+	case 4:
+		operand = byte((e.hl & 0xFF00) >> 8)
+		operand |= (1 << index)
+		e.hl = (u16(operand) << 8) | (e.hl & 0xFF00)
+	case 5:
+		operand = byte(e.hl)
+		operand |= (1 << index)
+		e.hl = (e.hl & 0xFF00) | u16(operand)
+	case 6:
+		operand = access(e, e.hl) or_return
+		operand |= (1 << index)
+		write(e, e.hl, operand) or_return
+	case 7:
+		operand = byte((e.af & 0xFF00) >> 8)
+		operand |= (1 << index)
+		e.af = (u16(operand) << 8) | (e.af & 0xFF00)
+	case:
+		return 0, .Instruction_Not_Emulated
+	}
+
+	if reg == 6 {
+		return 3, nil
+	} else {
+		return 2, nil
+	}
 }
 
 tick_peripherals :: proc(e: ^Emulator, mcycles: int) -> Emulator_Error {
