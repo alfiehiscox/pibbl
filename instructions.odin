@@ -2,8 +2,20 @@ package pibbl
 
 import "core:encoding/endian"
 
-// The implementations basically follow the naming conventions and block  of 
-// these listings founc here : https://gbdev.io/gb-opcodes/optables
+/*
+This file contains the implementations of the instruction set for the Game Boy's 
+SM83 processor. 
+
+The procedures broadly follow the layout and naming conventions lay out in this 
+document: 
+
+https://gbdev.io/pandocs/CPU_Instruction_Set.html
+
+Implementation details for behaviour and flag setting can be found in the reference: 
+
+https://rgbds.gbdev.io/docs/v0.9.1/gbz80.7
+*/
+
 execute_instruction :: proc(e: ^Emulator, opcode: byte) -> (cycles: int, err: Emulator_Error) {
 	switch (opcode & 0xC0) >> 6 {
 	case 0:
