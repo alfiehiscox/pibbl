@@ -1,4 +1,4 @@
-package main
+package pibbl
 
 import "core:log"
 import "core:testing"
