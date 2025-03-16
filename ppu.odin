@@ -1,8 +1,15 @@
 package pibbl
 
+SCREEN_WIDTH :: 0
+SCREEN_HEIGHT :: 0
+
 Pixel_Processing_Unit :: struct {
 	vram: [8192]byte,
 	oam:  [160]byte,
+}
+
+init_ppu :: proc(ppu: ^Pixel_Processing_Unit) {
+	// set up SDL3 context 
 }
 
 tick :: proc(ppu: ^Pixel_Processing_Unit, cycles: int) {}

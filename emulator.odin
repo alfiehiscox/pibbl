@@ -11,54 +11,17 @@ FLAG_SUB :: 0x40
 FLAG_HALF_CARRY :: 0x20
 FLAG_FULL_CARRY :: 0x10
 
-// Hardware Registers
-JOYP :: 0xFF00 // Joypad
-SB :: 0xFF01 // Serial Transfer Data
-SC :: 0xFF02 // Serial Transfer Control 
-DIV :: 0xFF04 // Divider Register
-TIMA :: 0xFF05 // Timer Counter 
-TMA :: 0xFF06 // Timer Modulo
-TAC :: 0xFF07 // Timer Control 
-IF :: 0xFF0F // Interrupt Flag 
-LCDC :: 0xFF40 // LCD Control 
-STAT :: 0xFF41 // LCD Status 
-SCY :: 0xFF42 // Viewport Y Position 
-SCX :: 0xFF43 // Viewport X Position 
-LY :: 0xFF44 // LCD Y Coordinate 
-LYC :: 0xFF45 // LY Compare
-DMA :: 0xFF46 // OAM DMA Source Address & Start 
-BGP :: 0xFF47 // BG Pallette Data 
-OBP0 :: 0xFF48 // OBJ Pallette 0 Data 
-OBP1 :: 0xFF49 // OBJ Pallette 1 Data 
-WY :: 0xFF4A // Window Y Position 
-WX :: 0xFF4B // Window X Position Plus 7 
-IE :: 0xFFFF // Interrupt Enable 
-
-// Sound Hardware Registers 
-NR10 :: 0xFF10 // Sound Channel 1 Sweep 
-NR11 :: 0xFF11 // Sound Channel 1 Length Timer & Duty Cycle 
-NR12 :: 0xFF12 // Sound Channel 1 Volumn & Envelope 
-NR13 :: 0xFF13 // Sound Channel 1 Period Low 
-NR14 :: 0xFF14 // Sound Channel 1 Period High & Control 
-NR21 :: 0xFF16 // Sound Channel 2 Length Timer & Duty Cycle 
-NR22 :: 0xFF17 // Sound Channel 2 Volume & Envelope
-NR23 :: 0xFF18 // Sound Channel 2 Period Low 
-NR24 :: 0xFF19 // Sound Channel 2 Period High & Control 
-NR30 :: 0xFF1A // Sound Channel 3 DAC Enable 
-NR31 :: 0xFF1B // Sound Channel 3 Length Timer 
-NR32 :: 0xFF1C // Sound Channle 3 Output Level
-NR33 :: 0xFF1D // Sound Channel 3 Period Low 
-NR34 :: 0xFF1E // Sound Channel 3 Period High & Control 
-NR41 :: 0xFF20 // Sound Channel 4 Length Timer 
-NR42 :: 0xFF21 // Sound Channel 4 Volume & Envelope 
-NR43 :: 0xFF22 // Sound Channel 4 Frequency & Randomness 
-NR44 :: 0xFF23 // Sound Channel 4 Control 
-NR50 :: 0xFF24 // Master Volume & VIN Panning 
-NR51 :: 0xFF25 // Sound Panning 
-NR52 :: 0xFF26 // Sound On/Off 
-WAVE_RAM_START :: 0xFF30
-WAVE_RAM_STOP :: 0xFF3F
-
+Emulator_Error :: enum {
+	None = 0,
+	Invalid_Access,
+	Invalid_Write,
+	Instruction_Not_Emulated,
+	Invalid_Instruction,
+	Stack_Overflow,
+	Stack_Underflow,
+	Unknown_Register,
+	Unknown_Interrupt_Vector,
+}
 
 Emulator :: struct {
 	// Registers
@@ -69,21 +32,20 @@ Emulator :: struct {
 	sp:      u16,
 	pc:      u16,
 
-	// Full ROM for banking. field `rom` must have 
+	// Full ROM for banking. field `_rom` must have 
 	// lifetime same as Emulator struct. 
 	_rom:    []byte,
 
 	/**
 	Memory Regions:
-	- rom : 16KB Bank 00            - 0000:3FFF
-	- romN: 16KB Bank 01~NN         - 4000:7FFF
-	- vram: 8KB Video Memory        - 8000:9FFF
-	- rram: 8KB External Rom Ram    - A000:BFFF <In PPU>
-	- wram: 8KB Working Memory      - C000:DFFF
-	- oam : 160B Sprite Attr Table  - FE00:FE9F <In PPU>
-	- io  : 127B i/o registres      - FF00:FF7F
-	- hram: 127B fast CPU mem       - FF80:FFFE
-	- intr: interupt enable flag 1B - FFFF
+	- _rom : 16KB Bank 00            - 0000:3FFF
+	- _romN: 16KB Bank 01~NN         - 4000:7FFF
+	- _vram: 8KB Video Memory        - 8000:9FFF
+	- _rram: 8KB External Rom Ram    - A000:BFFF <In PPU>
+	- _wram: 8KB Working Memory      - C000:DFFF
+	- _oam : 160B Sprite Attr Table  - FE00:FE9F <In PPU>
+	- _io  : 127B i/o registres      - FF00:FF7F
+	- _hram: 127B fast CPU mem       - FF80:FFFE
 
 	Stack grows across hram and wram. 
 	- Stacks at 0xFFFE and grows downward 
@@ -140,18 +102,6 @@ emulator_init :: proc(e: ^Emulator, rom: []byte) {
 	unimplemented()
 }
 
-Emulator_Error :: enum {
-	None = 0,
-	Invalid_Access,
-	Invalid_Write,
-	Instruction_Not_Emulated,
-	Invalid_Instruction,
-	Stack_Overflow,
-	Stack_Underflow,
-	Unknown_Register,
-	Unknown_Interrupt_Vector,
-}
-
 /**
 Timing: 
 
@@ -195,11 +145,24 @@ execute :: proc(e: ^Emulator) -> Emulator_Error {
 
 	for e.running {
 		cycles := 0
-		if should_interrupt(e) do cycles += interrupt(e) or_return
+		if should_interrupt(e) {
+			cycles, err := interrupt(e)
+			log.errorf("Error in Interrupt: %v\n", err)
+			if fatal_error(err) do return err
+		}
 
-		opcode := fetch_opcode(e) or_return
-		cycles += execute_instruction(e, opcode) or_return
-		tick_peripherals(e, cycles) or_return
+		opcode, opcode_err := fetch_opcode(e)
+		log.errorf("Error in Fetch: %v\n", opcode_err)
+		if fatal_error(opcode_err) do return opcode_err
+
+		instr_cycles, execute_err := execute_instruction(e, opcode)
+		log.errorf("Error in Execute Instruction: %v\n", execute_err)
+		if fatal_error(execute_err) do return execute_err
+		cycles += instr_cycles
+
+		tick_err := tick_peripherals(e, cycles)
+		log.errorf("Error in Tick Peripherals: %v\n", tick_err)
+		if fatal_error(tick_err) do return tick_err
 	}
 
 	unimplemented()
@@ -214,6 +177,55 @@ fetch_opcode :: proc(e: ^Emulator) -> (opcode: byte, err: Emulator_Error) {
 tick_peripherals :: proc(e: ^Emulator, mcycles: int) -> Emulator_Error {
 	unimplemented()
 }
+
+// ===========================================================
+// ================== Hardware Registers =====================
+// ===========================================================
+
+JOYP :: 0xFF00 // Joypad
+SB :: 0xFF01 // Serial Transfer Data
+SC :: 0xFF02 // Serial Transfer Control 
+DIV :: 0xFF04 // Divider Register
+TIMA :: 0xFF05 // Timer Counter 
+TMA :: 0xFF06 // Timer Modulo
+TAC :: 0xFF07 // Timer Control 
+IF :: 0xFF0F // Interrupt Flag 
+LCDC :: 0xFF40 // LCD Control 
+STAT :: 0xFF41 // LCD Status 
+SCY :: 0xFF42 // Viewport Y Position 
+SCX :: 0xFF43 // Viewport X Position 
+LY :: 0xFF44 // LCD Y Coordinate 
+LYC :: 0xFF45 // LY Compare
+DMA :: 0xFF46 // OAM DMA Source Address & Start 
+BGP :: 0xFF47 // BG Pallette Data 
+OBP0 :: 0xFF48 // OBJ Pallette 0 Data 
+OBP1 :: 0xFF49 // OBJ Pallette 1 Data 
+WY :: 0xFF4A // Window Y Position 
+WX :: 0xFF4B // Window X Position Plus 7 
+IE :: 0xFFFF // Interrupt Enable 
+NR10 :: 0xFF10 // Sound Channel 1 Sweep 
+NR11 :: 0xFF11 // Sound Channel 1 Length Timer & Duty Cycle 
+NR12 :: 0xFF12 // Sound Channel 1 Volumn & Envelope 
+NR13 :: 0xFF13 // Sound Channel 1 Period Low 
+NR14 :: 0xFF14 // Sound Channel 1 Period High & Control 
+NR21 :: 0xFF16 // Sound Channel 2 Length Timer & Duty Cycle 
+NR22 :: 0xFF17 // Sound Channel 2 Volume & Envelope
+NR23 :: 0xFF18 // Sound Channel 2 Period Low 
+NR24 :: 0xFF19 // Sound Channel 2 Period High & Control 
+NR30 :: 0xFF1A // Sound Channel 3 DAC Enable 
+NR31 :: 0xFF1B // Sound Channel 3 Length Timer 
+NR32 :: 0xFF1C // Sound Channle 3 Output Level
+NR33 :: 0xFF1D // Sound Channel 3 Period Low 
+NR34 :: 0xFF1E // Sound Channel 3 Period High & Control 
+NR41 :: 0xFF20 // Sound Channel 4 Length Timer 
+NR42 :: 0xFF21 // Sound Channel 4 Volume & Envelope 
+NR43 :: 0xFF22 // Sound Channel 4 Frequency & Randomness 
+NR44 :: 0xFF23 // Sound Channel 4 Control 
+NR50 :: 0xFF24 // Master Volume & VIN Panning 
+NR51 :: 0xFF25 // Sound Panning 
+NR52 :: 0xFF26 // Sound On/Off 
+WAVE_RAM_START :: 0xFF30
+WAVE_RAM_STOP :: 0xFF3F
 
 // ===========================================================
 // ======================= Interrupts ========================
@@ -520,4 +532,8 @@ set_r8_register :: proc(e: ^Emulator, reg: byte, value: u8) -> Emulator_Error {
 	}
 
 	return nil
+}
+
+fatal_error :: proc(err: Emulator_Error) -> bool {
+	return err == .Stack_Underflow || err == .Stack_Overflow
 }

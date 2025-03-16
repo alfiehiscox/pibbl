@@ -854,9 +854,15 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 
 }
 
-// TODO: Look at this in more detail 
 @(test)
-test_execute_stop :: proc(t: ^testing.T) {}
+test_execute_stop :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_execute_halt :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
 
 // TODO: should probably test Block 1 instructions 
 
@@ -2244,6 +2250,31 @@ test_ld_a_imm8 :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_a_imm16 :: proc(t: ^testing.T) {
+test_ld_a_imm16 :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_add_sp_imm8 :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_ld_hl_sp_imm8 :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_ld_sp_hl :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_di :: proc(t: ^testing.T) {
+	testing.fail(t)
+}
+
+@(test)
+test_ei :: proc(t: ^testing.T) {
 	testing.fail(t)
 }
