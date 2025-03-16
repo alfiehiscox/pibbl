@@ -11,6 +11,55 @@ FLAG_SUB :: 0x40
 FLAG_HALF_CARRY :: 0x20
 FLAG_FULL_CARRY :: 0x10
 
+// Hardware Registers
+JOYP :: 0xFF00 // Joypad
+SB :: 0xFF01 // Serial Transfer Data
+SC :: 0xFF02 // Serial Transfer Control 
+DIV :: 0xFF04 // Divider Register
+TIMA :: 0xFF05 // Timer Counter 
+TMA :: 0xFF06 // Timer Modulo
+TAC :: 0xFF07 // Timer Control 
+IF :: 0xFF0F // Interrupt Flag 
+LCDC :: 0xFF40 // LCD Control 
+STAT :: 0xFF41 // LCD Status 
+SCY :: 0xFF42 // Viewport Y Position 
+SCX :: 0xFF43 // Viewport X Position 
+LY :: 0xFF44 // LCD Y Coordinate 
+LYC :: 0xFF45 // LY Compare
+DMA :: 0xFF46 // OAM DMA Source Address & Start 
+BGP :: 0xFF47 // BG Pallette Data 
+OBP0 :: 0xFF48 // OBJ Pallette 0 Data 
+OBP1 :: 0xFF49 // OBJ Pallette 1 Data 
+WY :: 0xFF4A // Window Y Position 
+WX :: 0xFF4B // Window X Position Plus 7 
+IE :: 0xFFFF // Interrupt Enable 
+
+// Sound Hardware Registers 
+NR10 :: 0xFF10 // Sound Channel 1 Sweep 
+NR11 :: 0xFF11 // Sound Channel 1 Length Timer & Duty Cycle 
+NR12 :: 0xFF12 // Sound Channel 1 Volumn & Envelope 
+NR13 :: 0xFF13 // Sound Channel 1 Period Low 
+NR14 :: 0xFF14 // Sound Channel 1 Period High & Control 
+NR21 :: 0xFF16 // Sound Channel 2 Length Timer & Duty Cycle 
+NR22 :: 0xFF17 // Sound Channel 2 Volume & Envelope
+NR23 :: 0xFF18 // Sound Channel 2 Period Low 
+NR24 :: 0xFF19 // Sound Channel 2 Period High & Control 
+NR30 :: 0xFF1A // Sound Channel 3 DAC Enable 
+NR31 :: 0xFF1B // Sound Channel 3 Length Timer 
+NR32 :: 0xFF1C // Sound Channle 3 Output Level
+NR33 :: 0xFF1D // Sound Channel 3 Period Low 
+NR34 :: 0xFF1E // Sound Channel 3 Period High & Control 
+NR41 :: 0xFF20 // Sound Channel 4 Length Timer 
+NR42 :: 0xFF21 // Sound Channel 4 Volume & Envelope 
+NR43 :: 0xFF22 // Sound Channel 4 Frequency & Randomness 
+NR44 :: 0xFF23 // Sound Channel 4 Control 
+NR50 :: 0xFF24 // Master Volume & VIN Panning 
+NR51 :: 0xFF25 // Sound Panning 
+NR52 :: 0xFF26 // Sound On/Off 
+WAVE_RAM_START :: 0xFF30
+WAVE_RAM_STOP :: 0xFF3F
+
+
 Emulator :: struct {
 	// Registers
 	af:      u16,
@@ -22,7 +71,7 @@ Emulator :: struct {
 
 	// Full ROM for banking. field `rom` must have 
 	// lifetime same as Emulator struct. 
-	rom:     []byte,
+	_rom:    []byte,
 
 	/**
 	Memory Regions:
@@ -44,16 +93,20 @@ Emulator :: struct {
 	- TODO(alfie) implement rom banking
 	- TODO(alfie) do we need the mirror ram at E000:FDFF
 	**/
-	rom0:    [MAX_ROM]byte,
-	romN:    [MAX_ROM]byte,
-	bank:    int,
-	rram:    [8192]byte,
-	wram:    [8192]byte,
-	hram:    [127]byte,
-	io:      [127]byte,
+	_rom0:   [MAX_ROM]byte,
+	_romN:   [MAX_ROM]byte,
+	_bank:   int,
+	_rram:   [8192]byte,
+	_wram:   [8192]byte,
+	_hram:   [127]byte,
 
-	// 
-	intr:    byte,
+	// TODO: not sure I need to map this explicitly 
+	_io:     [127]byte,
+
+	// Interrupts
+	_ime:    bool,
+	_ie:     byte,
+	_if:     byte,
 
 	// Peripherals (sound, screen, etc) 
 	ppu:     Pixel_Processing_Unit,
@@ -64,23 +117,24 @@ Emulator :: struct {
 
 emulator_init :: proc(e: ^Emulator, rom: []byte) {
 	// init 
-	e.rom = rom
+	e._rom = rom
 	e.pc = 0
 	e.sp = 0xFFFE
 
 	// First 16KB of rom always goes into `rom0` 
 	bank0 := len(rom) < MAX_ROM ? rom : rom[:MAX_ROM]
-	copy_slice(e.rom0[:len(bank0)], bank0)
-	e.bank = 0
+	copy_slice(e._rom0[:len(bank0)], bank0)
+	e._bank = 0
 
 	// We can fit entire rom in mem
 	if len(rom) > MAX_ROM && len(rom) < (2 * MAX_ROM) {
 		bank1 := rom[MAX_ROM:]
-		copy_slice(e.romN[:len(bank1)], bank1)
-		e.bank = 1
+		copy_slice(e._romN[:len(bank1)], bank1)
+		e._bank = 1
 	}
 
-	//e.ppu = ppu.new(e.vram[:])
+	// init interrupts 
+	e._ime = false
 
 	unimplemented()
 }
@@ -138,6 +192,8 @@ execute :: proc(e: ^Emulator) -> Emulator_Error {
 	e.running = true
 
 	for e.running {
+		if should_interrupt(e) do interrupt(e)
+
 	}
 
 	unimplemented()
@@ -151,6 +207,28 @@ fetch_opcode :: proc(e: ^Emulator) -> (opcode: byte, err: Emulator_Error) {
 
 tick_peripherals :: proc(e: ^Emulator, mcycles: int) -> Emulator_Error {
 	unimplemented()
+}
+
+// ===========================================================
+// ======================= Interrupts =====================-==
+// ===========================================================
+
+request_vblank :: #force_inline proc(e: ^Emulator) {e._if |= 0x01}
+request_lcd :: #force_inline proc(e: ^Emulator) {e._if |= 0x02}
+request_timer :: #force_inline proc(e: ^Emulator) {e._if |= 0x04}
+request_serial :: #force_inline proc(e: ^Emulator) {e._if |= 0x08}
+request_joypad :: #force_inline proc(e: ^Emulator) {e._if |= 0x10}
+
+should_interrupt :: proc(e: ^Emulator) -> bool {
+	if !e._ime do return false
+	if e._ie == 0 do return false
+	if e._if == 0 do return false
+	return e._ie & e._if > 0
+}
+
+interrupt :: proc(e: ^Emulator) {
+	e._ime = false
+	// Call Interrupt Handler??
 }
 
 // ===========================================================
@@ -222,23 +300,39 @@ access_range :: proc(
 access :: proc(e: ^Emulator, addr: u16) -> (byte, Emulator_Error) {
 	switch {
 	case addr >= 0x0000 && addr <= 0x3FFF:
-		return e.rom0[addr], nil
+		return e._rom0[addr], nil
 	case addr >= 0x4000 && addr <= 0x7FFF:
-		return e.romN[addr - 0x4000], nil // TODO(alfie) - memory banking 
+		return e._romN[addr - 0x4000], nil // TODO(alfie) - memory banking 
 	case addr >= 0x8000 && addr <= 0x9FFF:
 		return ppu_access(&e.ppu, addr)
 	case addr >= 0xA000 && addr <= 0xBFFF:
-		return e.rram[addr - 0xA000], nil
+		return e._rram[addr - 0xA000], nil
 	case addr >= 0xC000 && addr <= 0xDFFF:
-		return e.wram[addr - 0xC000], nil
+		return e._wram[addr - 0xC000], nil
 	case addr >= 0xFE00 && addr <= 0xFE9F:
 		return ppu_access(&e.ppu, addr)
 	case addr >= 0xFF00 && addr <= 0xFF7F:
-		return e.io[addr - 0xFF00], nil
+		return access_io(e, addr)
+	//return e._io[addr - 0xFF00], nil
 	case addr >= 0xFF80 && addr <= 0xFFFE:
-		return e.hram[addr - 0xFF80], nil
+		return e._hram[addr - 0xFF80], nil
 	case addr == 0xFFFF:
-		return e.intr, nil
+		return e._ie, nil
+	case:
+		return 0x00, .Invalid_Access
+	}
+}
+
+// It might be that we explicitly map the IO registers to their own 
+// modules but for now it's just a flat map apart from interrupts. 
+access_io :: proc(e: ^Emulator, addr: u16) -> (byte, Emulator_Error) {
+	switch {
+	case addr == IE:
+		return e._ie, nil
+	case addr == IF:
+		return e._if, nil
+	case addr >= 0xFF00 && addr <= 0xFF7F:
+		return e._io[addr - 0xFF00], nil
 	case:
 		return 0x00, .Invalid_Access
 	}
@@ -253,17 +347,34 @@ write :: proc(e: ^Emulator, addr: u16, val: byte) -> Emulator_Error {
 	case addr >= 0x8000 && addr <= 0x9FFF:
 		return ppu_write(&e.ppu, addr, val)
 	case addr >= 0xA000 && addr <= 0xBFFF:
-		e.rram[addr - 0xA000] = val
+		e._rram[addr - 0xA000] = val
 	case addr >= 0xC000 && addr <= 0xDFFF:
-		e.wram[addr - 0xC000] = val
+		e._wram[addr - 0xC000] = val
 	case addr >= 0xFE00 && addr <= 0xFE9F:
 		return ppu_write(&e.ppu, addr, val)
 	case addr >= 0xFF00 && addr <= 0xFF7F:
-		e.io[addr - 0xFF00] = val
+		return write_io(e, addr, val)
 	case addr >= 0xFF80 && addr <= 0xFFFE:
-		e.hram[addr - 0xFF80] = val
+		e._hram[addr - 0xFF80] = val
 	case addr == 0xFFFF:
-		e.intr = val
+		e._ie = val
+	case:
+		return .Invalid_Write
+	}
+
+	return nil
+}
+
+// It might be that we explicitly map the IO registers to their own 
+// modules but for now it's just a flat map apart from interrupts. 
+write_io :: proc(e: ^Emulator, addr: u16, val: byte) -> Emulator_Error {
+	switch {
+	case addr == IE:
+		e._ie = val
+	case addr == IF:
+		e._if = val
+	case addr >= 0xFF00 && addr <= 0xFF7F:
+		e._io[addr - 0xFF00] = val
 	case:
 		return .Invalid_Write
 	}
