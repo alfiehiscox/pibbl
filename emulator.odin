@@ -101,6 +101,7 @@ Emulator :: struct {
 	_hram:   [127]byte,
 
 	// TODO: not sure I need to map this explicitly 
+	// to peripherals that store their own data yet. 
 	_io:     [127]byte,
 
 	// Interrupts
@@ -120,6 +121,9 @@ emulator_init :: proc(e: ^Emulator, rom: []byte) {
 	e._rom = rom
 	e.pc = 0
 	e.sp = 0xFFFE
+	e._ime = false
+	e._ie = 0
+	e._if = 0
 
 	// First 16KB of rom always goes into `rom0` 
 	bank0 := len(rom) < MAX_ROM ? rom : rom[:MAX_ROM]
@@ -133,9 +137,6 @@ emulator_init :: proc(e: ^Emulator, rom: []byte) {
 		e._bank = 1
 	}
 
-	// init interrupts 
-	e._ime = false
-
 	unimplemented()
 }
 
@@ -148,6 +149,7 @@ Emulator_Error :: enum {
 	Stack_Overflow,
 	Stack_Underflow,
 	Unknown_Register,
+	Unknown_Interrupt_Vector,
 }
 
 /**
@@ -192,8 +194,12 @@ execute :: proc(e: ^Emulator) -> Emulator_Error {
 	e.running = true
 
 	for e.running {
-		if should_interrupt(e) do interrupt(e)
+		cycles := 0
+		if should_interrupt(e) do cycles += interrupt(e) or_return
 
+		opcode := fetch_opcode(e) or_return
+		cycles += execute_instruction(e, opcode) or_return
+		tick_peripherals(e, cycles) or_return
 	}
 
 	unimplemented()
@@ -210,8 +216,15 @@ tick_peripherals :: proc(e: ^Emulator, mcycles: int) -> Emulator_Error {
 }
 
 // ===========================================================
-// ======================= Interrupts =====================-==
+// ======================= Interrupts ========================
 // ===========================================================
+
+// Interrupt Vectors 
+VBLANK_VEC :: 0x0040
+STAT_VEC :: 0x0048
+TIMER_VEC :: 0x0050
+SERIAL_VEC :: 0x0058
+JOYPAD_VEC :: 0x0060
 
 request_vblank :: #force_inline proc(e: ^Emulator) {e._if |= 0x01}
 request_lcd :: #force_inline proc(e: ^Emulator) {e._if |= 0x02}
@@ -226,9 +239,40 @@ should_interrupt :: proc(e: ^Emulator) -> bool {
 	return e._ie & e._if > 0
 }
 
-interrupt :: proc(e: ^Emulator) {
+interrupt :: proc(e: ^Emulator) -> (cycles: int, err: Emulator_Error) {
 	e._ime = false
-	// Call Interrupt Handler??
+
+	for i: uint = 0; i < 5; i += 1 {
+		flag := e._if & (1 << i)
+		if flag >> i == 1 {
+			cycles += 2
+			e._if &= ~flag // unset flag 
+			stack_push_u16(e, e.pc) or_return // push pc 
+			cycles += 2
+			e.pc = get_interrupt_vector(flag) or_return // handle interrupt 
+			cycles += 1
+			return cycles, nil
+		}
+	}
+
+	return cycles, nil
+}
+
+get_interrupt_vector :: proc(flag: byte) -> (u16, Emulator_Error) {
+	switch flag {
+	case 1:
+		return VBLANK_VEC, nil // 0b00000001
+	case 2:
+		return STAT_VEC, nil // 0b00000010
+	case 4:
+		return TIMER_VEC, nil // 0b00000100
+	case 8:
+		return SERIAL_VEC, nil // ob0001000
+	case 16:
+		return JOYPAD_VEC, nil // 0b00010000
+	case:
+		return 0, .Unknown_Interrupt_Vector
+	}
 }
 
 // ===========================================================

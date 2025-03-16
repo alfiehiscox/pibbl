@@ -7,7 +7,7 @@ import "core:testing"
 test_execute_ld_r16_imm16 :: proc(t: ^testing.T) {
 	e: Emulator
 
-	e.rom0[1], e.rom0[2] = 0x00, 0x04
+	e._rom0[1], e._rom0[2] = 0x00, 0x04
 	e.pc = 1
 
 	cycles: int
@@ -98,7 +98,7 @@ test_execute_ld_a_r16mem :: proc(t: ^testing.T) {
 	err: Emulator_Error
 
 	e.af = 0x00BC
-	e.wram[0x44] = 0x55 // addr: 0xC044
+	e._wram[0x44] = 0x55 // addr: 0xC044
 	e.bc = 0xC044
 	cycles, err = execute_ld_a_r16mem(&e, 0b00001010)
 	testing.expectf(t, err == nil, "err=%s", err)
@@ -108,7 +108,7 @@ test_execute_ld_a_r16mem :: proc(t: ^testing.T) {
 	testing.expect(t, byte(e.af & 0x00FF) == 0xBC)
 
 	e.af = 0x00BC
-	e.wram[0x55] = 0x55 // addr: 0xC055
+	e._wram[0x55] = 0x55 // addr: 0xC055
 	e.de = 0xC055
 	cycles, err = execute_ld_a_r16mem(&e, 0b00011010)
 	testing.expectf(t, err == nil, "err=%s", err)
@@ -118,7 +118,7 @@ test_execute_ld_a_r16mem :: proc(t: ^testing.T) {
 	testing.expect(t, byte(e.af & 0x00FF) == 0xBC)
 
 	e.af = 0x00BC
-	e.wram[0x66] = 0x55 // addr: 0xC066
+	e._wram[0x66] = 0x55 // addr: 0xC066
 	e.hl = 0xC066
 	cycles, err = execute_ld_a_r16mem(&e, 0b00101010)
 	testing.expectf(t, err == nil, "err=%s", err)
@@ -129,7 +129,7 @@ test_execute_ld_a_r16mem :: proc(t: ^testing.T) {
 	testing.expect(t, byte(e.af & 0x00FF) == 0xBC)
 
 	e.af = 0x00BC
-	e.wram[0x77] = 0x55 // addr: 0xC077
+	e._wram[0x77] = 0x55 // addr: 0xC077
 	e.hl = 0xC077
 	cycles, err = execute_ld_a_r16mem(&e, 0b00111010)
 	testing.expectf(t, err == nil, "err=%s", err)
@@ -145,7 +145,7 @@ test_execute_ld_imm16_sp :: proc(t: ^testing.T) {
 	e: Emulator
 	e.pc = 1
 
-	e.rom0[e.pc], e.rom0[e.pc + 1] = 0x11, 0xC0
+	e._rom0[e.pc], e._rom0[e.pc + 1] = 0x11, 0xC0
 
 	cycles: int
 	err: Emulator_Error
@@ -155,8 +155,8 @@ test_execute_ld_imm16_sp :: proc(t: ^testing.T) {
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 5)
 	testing.expect(t, e.pc == 3)
-	testing.expect(t, e.wram[0x11] == 0xCD)
-	testing.expect(t, e.wram[0x12] == 0xAB)
+	testing.expect(t, e._wram[0x11] == 0xCD)
+	testing.expect(t, e._wram[0x12] == 0xAB)
 }
 
 @(test)
@@ -394,13 +394,13 @@ test_execute_inc_r8 :: proc(t: ^testing.T) {
 	testing.expect(t, byte(e.af) == FLAG_HALF_CARRY) // half carry
 
 	// inc [hl] is different 
-	e.wram[0x000F] = 0x80
+	e._wram[0x000F] = 0x80
 	e.hl = 0xC00F
 	cycles, err = execute_inc_r8(&e, 0b00110100)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 3)
 	testing.expect(t, e.pc == 1)
-	testing.expect(t, e.wram[0x000F] == 0x81)
+	testing.expect(t, e._wram[0x000F] == 0x81)
 	testing.expect(t, byte(e.af) == 0)
 }
 
@@ -433,14 +433,14 @@ test_execute_dec_r8 :: proc(t: ^testing.T) {
 	testing.expect(t, byte(e.af) == FLAG_SUB | FLAG_ZERO)
 
 	// dec [hl]
-	e.wram[0x000F] = 0x10
+	e._wram[0x000F] = 0x10
 	e.hl = 0xC00F
 	e.af = 0
 	cycles, err = execute_dec_r8(&e, 0b00110101)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 3)
 	testing.expect(t, e.pc == 1)
-	testing.expect(t, e.wram[0x000F] == 0x0F)
+	testing.expect(t, e._wram[0x000F] == 0x0F)
 	testing.expect(t, byte(e.af) == FLAG_SUB | FLAG_HALF_CARRY)
 }
 
@@ -454,7 +454,7 @@ test_execute_ld_r8_imm8 :: proc(t: ^testing.T) {
 
 	// h 
 	e.hl = 0
-	e.rom0[e.pc] = 0xFF
+	e._rom0[e.pc] = 0xFF
 	cycles, err = execute_ld_r8_imm8(&e, 0b00100110)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
@@ -464,7 +464,7 @@ test_execute_ld_r8_imm8 :: proc(t: ^testing.T) {
 	// l 
 	e.pc = 1
 	e.hl = 0
-	e.rom0[e.pc] = 0xAB
+	e._rom0[e.pc] = 0xAB
 	cycles, err = execute_ld_r8_imm8(&e, 0b00101110)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
@@ -473,14 +473,14 @@ test_execute_ld_r8_imm8 :: proc(t: ^testing.T) {
 
 	// ld [hl],imm8
 	e.pc = 1
-	e.rom0[e.pc] = 0xAB
-	e.wram[0x000F] = 0x00
+	e._rom0[e.pc] = 0xAB
+	e._wram[0x000F] = 0x00
 	e.hl = 0xC00F
 	cycles, err = execute_ld_r8_imm8(&e, 0b00110110)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 3)
 	testing.expect(t, e.pc == 2)
-	testing.expect(t, e.wram[0x000F] == 0xAB)
+	testing.expect(t, e._wram[0x000F] == 0xAB)
 }
 
 @(test)
@@ -756,7 +756,7 @@ test_execute_jr_imm8 :: proc(t: ^testing.T) {
 
 	// Jump positive offset 
 	e.pc = 54
-	e.rom0[e.pc] = 8
+	e._rom0[e.pc] = 8
 
 	cycles, err = execute_jr_imm8(&e, 0x18)
 	testing.expectf(t, err == nil, "err=%s", err)
@@ -765,7 +765,7 @@ test_execute_jr_imm8 :: proc(t: ^testing.T) {
 
 	// Jump negative offset
 	e.pc = 68
-	e.rom0[e.pc] = ~u8(24)
+	e._rom0[e.pc] = ~u8(24)
 
 	cycles, err = execute_jr_imm8(&e, 0x18)
 	testing.expectf(t, err == nil, "err=%s", err)
@@ -783,7 +783,7 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 	// test nz - positive 
 	e.af = 0
 	e.pc = 12
-	e.rom0[e.pc] = 24
+	e._rom0[e.pc] = 24
 	cycles, err = execute_jr_cond_imm8(&e, 0x20)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 3)
@@ -792,7 +792,7 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 	// test nz - negative
 	e.af = FLAG_ZERO
 	e.pc = 12
-	e.rom0[e.pc] = 24
+	e._rom0[e.pc] = 24
 	cycles, err = execute_jr_cond_imm8(&e, 0x20)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
@@ -801,7 +801,7 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 	// test z - positive
 	e.af = FLAG_ZERO
 	e.pc = 12
-	e.rom0[e.pc] = ~u8(6)
+	e._rom0[e.pc] = ~u8(6)
 	cycles, err = execute_jr_cond_imm8(&e, 0x28)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 3)
@@ -810,7 +810,7 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 	// test z - negative
 	e.af = 0
 	e.pc = 12
-	e.rom0[e.pc] = 24
+	e._rom0[e.pc] = 24
 	cycles, err = execute_jr_cond_imm8(&e, 0x28)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
@@ -819,7 +819,7 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 	// test nc - positive 
 	e.af = 0
 	e.pc = 12
-	e.rom0[e.pc] = 10
+	e._rom0[e.pc] = 10
 	cycles, err = execute_jr_cond_imm8(&e, 0x30)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 3)
@@ -828,7 +828,7 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 	// test nc - negative
 	e.af = FLAG_FULL_CARRY
 	e.pc = 12
-	e.rom0[e.pc] = 24
+	e._rom0[e.pc] = 24
 	cycles, err = execute_jr_cond_imm8(&e, 0x30)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
@@ -837,7 +837,7 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 	// test c - positive 
 	e.af = FLAG_FULL_CARRY
 	e.pc = 12
-	e.rom0[e.pc] = 10
+	e._rom0[e.pc] = 10
 	cycles, err = execute_jr_cond_imm8(&e, 0x38)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 3)
@@ -846,7 +846,7 @@ test_execute_jr_cond_imm8 :: proc(t: ^testing.T) {
 	// test c - negative
 	e.af = 0
 	e.pc = 12
-	e.rom0[e.pc] = 24
+	e._rom0[e.pc] = 24
 	cycles, err = execute_jr_cond_imm8(&e, 0x38)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
@@ -892,7 +892,7 @@ test_execute_add_a_r8 :: proc(t: ^testing.T) {
 	testing.expect(t, e.af == (0x1000 | FLAG_HALF_CARRY))
 
 	// Add with [hl]
-	e.wram[5] = 0x05
+	e._wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0x0000
 	cycles, err = execute_block_2_instruction(&e, 0x86)
@@ -939,7 +939,7 @@ test_execute_adc_a_r8 :: proc(t: ^testing.T) {
 	testing.expect(t, e.af == (0x1100 | FLAG_HALF_CARRY))
 
 	// Add with [hl]
-	e.wram[5] = 0x05
+	e._wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0x0000 | FLAG_FULL_CARRY
 	cycles, err = execute_block_2_instruction(&e, 0x8E)
@@ -986,7 +986,7 @@ test_execute_sub_a_r8 :: proc(t: ^testing.T) {
 	testing.expectf(t, e.af == 0x0E00, "got=%X exp=%X", e.af, 0x0E00)
 
 	// Add with [hl]
-	e.wram[5] = 0x05
+	e._wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00
 	cycles, err = execute_block_2_instruction(&e, 0x96)
@@ -1033,7 +1033,7 @@ test_execute_sbc_a_r8 :: proc(t: ^testing.T) {
 	testing.expectf(t, e.af == 0x0D00, "got=%X exp=%X", e.af, 0x0D00)
 
 	// Add with [hl]
-	e.wram[5] = 0x05
+	e._wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00 | FLAG_FULL_CARRY
 	cycles, err = execute_block_2_instruction(&e, 0x9E)
@@ -1090,7 +1090,7 @@ test_execute_and_a_r8 :: proc(t: ^testing.T) {
 	)
 
 	// Add with [hl]
-	e.wram[5] = 0x05
+	e._wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00
 	cycles, err = execute_block_2_instruction(&e, 0xA6)
@@ -1134,7 +1134,7 @@ test_execute_xor_a_r8 :: proc(t: ^testing.T) {
 	testing.expectf(t, e.af == 0x0E00, "got=%X exp=%X", e.af, 0x0E00)
 
 	// Add with [hl]
-	e.wram[5] = 0x05
+	e._wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00
 	cycles, err = execute_block_2_instruction(&e, 0xAE)
@@ -1173,7 +1173,7 @@ test_execute_or_a_r8 :: proc(t: ^testing.T) {
 	testing.expectf(t, e.af == 0x0F00, "got=%X exp=%X", e.af, 0x0F00)
 
 	// Add with [hl]
-	e.wram[5] = 0x05
+	e._wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00
 	cycles, err = execute_block_2_instruction(&e, 0xB6)
@@ -1220,7 +1220,7 @@ test_execute_cp_a_r8 :: proc(t: ^testing.T) {
 	testing.expectf(t, e.af == 0x0F00, "got=%X exp=%X", e.af, 0x0E00)
 
 	// Add with [hl]
-	e.wram[5] = 0x05
+	e._wram[5] = 0x05
 	e.hl = 0xC005
 	e.af = 0xFF00
 	cycles, err = execute_block_2_instruction(&e, 0xBE)
@@ -1246,7 +1246,7 @@ test_execute_add_a_imm8 :: proc(t: ^testing.T) {
 
 	// Add with zero + full carry (c)
 	e.af = 0x8000
-	e.rom0[e.pc] = 0x80
+	e._rom0[e.pc] = 0x80
 	cycles, err = execute_block_3_instruction(&e, 0xC6)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
@@ -1263,7 +1263,7 @@ test_execute_add_a_imm8 :: proc(t: ^testing.T) {
 
 	// Add with half carry (b)
 	e.af = 0x0F00
-	e.rom0[e.pc] = 0x01
+	e._rom0[e.pc] = 0x01
 	cycles, err = execute_block_3_instruction(&e, 0xC6)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
@@ -1281,7 +1281,7 @@ test_execute_adc_a_imm8 :: proc(t: ^testing.T) {
 
 	// Add with zero + full carry (c)
 	e.af = 0x8000 | FLAG_FULL_CARRY
-	e.rom0[e.pc] = 0x7F
+	e._rom0[e.pc] = 0x7F
 	cycles, err = execute_block_3_instruction(&e, 0xCE)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
@@ -1298,7 +1298,7 @@ test_execute_adc_a_imm8 :: proc(t: ^testing.T) {
 
 	// Add with half carry (b)
 	e.af = 0x0F00 | FLAG_FULL_CARRY
-	e.rom0[e.pc] = 0x01
+	e._rom0[e.pc] = 0x01
 	cycles, err = execute_block_3_instruction(&e, 0xCE)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 2)
@@ -1380,7 +1380,7 @@ test_execute_jp_cond_imm8 :: proc(t: ^testing.T) {
 	cycles: int
 	err: Emulator_Error
 
-	copy_slice(e.rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
+	copy_slice(e._rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
 
 	// Jump if nz - fail 
 	e.pc = 1
@@ -1424,7 +1424,7 @@ test_execute_jp_imm8 :: proc(t: ^testing.T) {
 	cycles: int
 	err: Emulator_Error
 
-	copy_slice(e.rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
+	copy_slice(e._rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
 
 	cycles, err = execute_block_3_instruction(&e, 0xC3)
 	testing.expectf(t, err == nil, "err=%s", err)
@@ -1456,7 +1456,7 @@ test_execute_call_imm16 :: proc(t: ^testing.T) {
 	cycles: int
 	err: Emulator_Error
 
-	copy_slice(e.rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
+	copy_slice(e._rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
 
 	cycles, err = execute_block_3_instruction(&e, 0xCD)
 	testing.expectf(t, err == nil, "err=%s", err)
@@ -1478,7 +1478,7 @@ test_execute_call_cond_imm16 :: proc(t: ^testing.T) {
 	err: Emulator_Error
 	addr: u16
 
-	copy_slice(e.rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
+	copy_slice(e._rom0[e.pc:e.pc + 2], []byte{0x22, 0x00})
 
 	// Jump if nz - fail 
 	e.pc = 1
@@ -1814,11 +1814,11 @@ test_prefix_rlc_r8 :: proc(t: ^testing.T) {
 	// rlc [hl]
 	e.af = 0
 	e.hl = 0xC001
-	e.wram[1] = 0xAB
+	e._wram[1] = 0xAB
 	cycles, err = execute_prefix_instruction(&e, 6)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 4)
-	testing.expect(t, e.wram[1] == 0x57)
+	testing.expect(t, e._wram[1] == 0x57)
 	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
 }
 
@@ -1863,11 +1863,11 @@ test_prefix_rrc_r8 :: proc(t: ^testing.T) {
 
 	e.af = 0
 	e.hl = 0xC001
-	e.wram[1] = 0xAB
+	e._wram[1] = 0xAB
 	cycles, err = execute_prefix_instruction(&e, 0xE)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 4)
-	testing.expect(t, e.wram[1] == 0xD5)
+	testing.expect(t, e._wram[1] == 0xD5)
 	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
 }
 
@@ -1908,11 +1908,11 @@ test_prefix_rl_r8 :: proc(t: ^testing.T) {
 	// rl [hl]
 	e.af = 0
 	e.hl = 0xC001
-	e.wram[1] = 0xAB // 0b10101011
+	e._wram[1] = 0xAB // 0b10101011
 	cycles, err = execute_prefix_instruction(&e, 0x16)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 4)
-	testing.expect(t, e.wram[1] == 0x56)
+	testing.expect(t, e._wram[1] == 0x56)
 	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
 }
 
@@ -1962,11 +1962,11 @@ test_prefix_rr_r8 :: proc(t: ^testing.T) {
 	// rr [hl]
 	e.af = 0
 	e.hl = 0xC001
-	e.wram[1] = 0xAB
+	e._wram[1] = 0xAB
 	cycles, err = execute_prefix_instruction(&e, 0x1E)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 4)
-	testing.expect(t, e.wram[1] == 0x55)
+	testing.expect(t, e._wram[1] == 0x55)
 	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
 }
 
@@ -1998,11 +1998,11 @@ test_prefix_sla_r8 :: proc(t: ^testing.T) {
 	// sla [hl]
 	e.af = 0
 	e.hl = 0xC001
-	e.wram[1] = 0xAB
+	e._wram[1] = 0xAB
 	cycles, err = execute_prefix_instruction(&e, 0x26)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 4)
-	testing.expect(t, e.wram[1] == 0x56)
+	testing.expect(t, e._wram[1] == 0x56)
 	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
 }
 
@@ -2034,11 +2034,11 @@ test_prefix_sra_r8 :: proc(t: ^testing.T) {
 	// sra [hl]
 	e.af = 0
 	e.hl = 0xC001
-	e.wram[1] = 0xAB
+	e._wram[1] = 0xAB
 	cycles, err = execute_prefix_instruction(&e, 0x2E)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 4)
-	testing.expect(t, e.wram[1] == 0xD5)
+	testing.expect(t, e._wram[1] == 0xD5)
 	testing.expect(t, byte(e.af) == FLAG_FULL_CARRY)
 }
 
@@ -2067,11 +2067,11 @@ test_prefix_swap_r8 :: proc(t: ^testing.T) {
 
 	// swap [hl]
 	e.hl = 0xC002
-	e.wram[2] = 0xCF
+	e._wram[2] = 0xCF
 	cycles, err = execute_prefix_instruction(&e, 0x36)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 4)
-	testing.expect(t, e.wram[2] == 0xFC)
+	testing.expect(t, e._wram[2] == 0xFC)
 }
 
 @(test)
@@ -2101,11 +2101,11 @@ test_prefix_srl_r8 :: proc(t: ^testing.T) {
 	// srl [hl]
 	e.af = 0
 	e.hl = 0xC003
-	e.wram[3] = 0xDE
+	e._wram[3] = 0xDE
 	cycles, err = execute_prefix_instruction(&e, 0x3E)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 4)
-	testing.expect(t, e.wram[3] == 0x6F)
+	testing.expect(t, e._wram[3] == 0x6F)
 	testing.expect(t, e.af == 0)
 
 	// srl a
@@ -2147,7 +2147,7 @@ test_prefix_bit_b3_r8 :: proc(t: ^testing.T) {
 	// bit 0 [hl]
 	e.af = 0
 	e.hl = 0xC003
-	e.wram[3] = 0x10
+	e._wram[3] = 0x10
 	cycles, err = execute_prefix_instruction(&e, 0b01000110)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 3)
@@ -2179,11 +2179,11 @@ test_prefix_res_b3_r8 :: proc(t: ^testing.T) {
 	// res 4 [hl]
 	e.af = 0
 	e.hl = 0xC003
-	e.wram[3] = 0x10 // 00010000
+	e._wram[3] = 0x10 // 00010000
 	cycles, err = execute_prefix_instruction(&e, 0xA6)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 3)
-	testing.expect(t, e.wram[3] == 0)
+	testing.expect(t, e._wram[3] == 0)
 }
 
 @(test)
@@ -2211,11 +2211,11 @@ test_prefix_set_b3_r8 :: proc(t: ^testing.T) {
 	// res 2 [hl]
 	e.af = 0
 	e.hl = 0xC003
-	e.wram[3] = 0x10 // 00010000
+	e._wram[3] = 0x10 // 00010000
 	cycles, err = execute_prefix_instruction(&e, 0xD6)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 3)
-	testing.expect(t, e.wram[3] == 0x14)
+	testing.expect(t, e._wram[3] == 0x14)
 }
 
 @(test)
