@@ -1,6 +1,7 @@
 package pibbl
 
 import "core:encoding/endian"
+import "core:log"
 
 /*
 This file contains the implementations of the instruction set for the Game Boy's 
@@ -1168,7 +1169,19 @@ execute_ld_imm16_a :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	a := byte((e.af & 0xFF00) >> 8)
+
+	bs := access_range(e, e.pc, e.pc + 2) or_return
+	defer delete(bs)
+
+	e.pc += 2
+
+	addr, ok := endian.get_u16(bs, .Little)
+	if !ok do return 0, .Invalid_Instruction
+
+	write(e, addr, a) or_return
+
+	return 4, nil
 }
 
 execute_ldh_imm8_a :: #force_inline proc(
@@ -1178,7 +1191,12 @@ execute_ldh_imm8_a :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	a := byte((e.af & 0xFF00) >> 8)
+	nxt := access(e, e.pc) or_return
+	e.pc += 1
+	write(e, 0xFF00 + u16(nxt), a) or_return
+
+	return 3, nil
 }
 
 execute_ldh_c_a :: #force_inline proc(
@@ -1188,7 +1206,12 @@ execute_ldh_c_a :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	a := byte((e.af & 0xFF00) >> 8)
+	c := e.bc & 0x00FF
+
+	write(e, 0xFF00 + c, a) or_return
+
+	return 2, nil
 }
 
 execute_a_imm16 :: #force_inline proc(

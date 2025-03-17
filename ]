@@ -2286,12 +2286,12 @@ test_ld_imm16_a :: proc(t: ^testing.T) {
 	testing.expect(t, e.pc == 0xC002)
 
 	values: []byte
-	values, err = access_range(&e, 0xC0AB, 0xC0AD)
+	values, err = access_range(&e, 0xC0AB, 0xC0AC)
 	testing.expectf(t, err == nil, "err=%s", err)
 	defer delete(values)
 
 	value, ok = endian.get_u16(values, .Little)
-	testing.expectf(t, ok, "not okay")
+	testing.expect(t, ok)
 	testing.expectf(t, value == 0xBB, "exp=0xBB got=%X", value)
 }
 

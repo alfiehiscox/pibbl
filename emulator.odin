@@ -1,7 +1,6 @@
 package pibbl
 
 import "base:intrinsics"
-import "core:encoding/endian"
 import "core:log"
 
 MAX_ROM :: 16384
