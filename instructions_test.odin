@@ -2353,7 +2353,33 @@ test_ld_a_imm16 :: proc(t: ^testing.T) {
 
 @(test)
 test_add_sp_imm8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	cycles: int
+	err: Emulator_Error
+
+	// Test positive offset
+	e.af = 0 
+	e.sp = 0xFFF2
+	e.pc = 0xC000
+	write(&e, e.pc, 0x0F)
+	cycles, err = execute_block_3_instruction(&e, 0xF8)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	value := 0xFFF2 + 0x0F
+	testing.expect(t, e.sp == u16(value))
+	testing.expectf(t, e.af == FLAG_FULL_CARRY | FLAG_HALF_CARRY , "got=%b", e.af)
+
+	// Test negative offset
+	e.af = 0 
+	e.sp = 0xFFFE
+	e.pc = 0xC000
+	operand := ~u8(12) // -13
+	write(&e, e.pc, operand)
+	cycles, err = execute_block_3_instruction(&e, 0xF8)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expectf(t, e.sp == (0xFFFE - 13), "exp=%x got=%x", (0xFFFE - 13), e.sp)
+	testing.expectf(t, e.af == FLAG_HALF_CARRY | FLAG_FULL_CARRY, "got=%b", e.af)
 }
 
 @(test)

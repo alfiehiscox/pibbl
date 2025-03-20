@@ -5,10 +5,10 @@ import "core:log"
 
 MAX_ROM :: 16384
 
-FLAG_ZERO :: 0x80
-FLAG_SUB :: 0x40
-FLAG_HALF_CARRY :: 0x20
-FLAG_FULL_CARRY :: 0x10
+FLAG_ZERO :: 0x80       // 0x10000000
+FLAG_SUB :: 0x40        // 0x01000000
+FLAG_HALF_CARRY :: 0x20 // 0x00100000
+FLAG_FULL_CARRY :: 0x10 // 0x00010000
 
 Emulator_Error :: enum {
 	None = 0,
@@ -473,6 +473,7 @@ will_add_overflow :: proc(a, b: $T) -> bool where intrinsics.type_is_integer(T) 
 will_add_h_overflow :: proc {
 	will_add_h_overflow_u8,
 	will_add_h_overflow_u16,
+	will_add_h_overflow_i16, 
 }
 
 will_add_h_overflow_u8 :: proc(a, b: u8) -> bool {
@@ -480,6 +481,10 @@ will_add_h_overflow_u8 :: proc(a, b: u8) -> bool {
 }
 
 will_add_h_overflow_u16 :: proc(a, b: u16) -> bool {
+	return (a & 0x0FFF) + (b & 0x0FFF) > 0x0FFF
+}
+
+will_add_h_overflow_i16 :: proc(a, b: i16) -> bool {
 	return (a & 0x0FFF) + (b & 0x0FFF) > 0x0FFF
 }
 

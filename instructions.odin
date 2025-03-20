@@ -262,6 +262,8 @@ execute_block_3_instruction :: #force_inline proc(
 		return execute_ldh_a_imm8(e, opcode) // ldh a, [imm8]
 	case 0xFA:
 		return execute_ld_a_imm16(e, opcode) // ld a, [imm16]
+	case 0xF8:
+		return execute_add_sp_imm8(e, opcode) // add sp, imm8
 	case:
 		return 0, .Instruction_Not_Emulated
 	}
@@ -2082,4 +2084,26 @@ execute_set_b3_r8 :: #force_inline proc(
 	} else {
 		return 2, nil
 	}
+}
+
+execute_add_sp_imm8 :: #force_inline proc(
+	e: ^Emulator, 
+	opcode: byte
+) -> (
+	cycles: int, 
+	err: Emulator_Error
+) {
+
+	operand_byte := access(e, e.pc) or_return
+	operand := i16(i8(operand_byte))
+
+	f := 0 
+
+	if will_add_overflow(e.sp, u16(operand)) do f |= FLAG_FULL_CARRY
+	if will_add_h_overflow(e.sp, u16(operand)) do f |= FLAG_HALF_CARRY
+	
+	e.sp += u16(operand)
+	e.af = (e.af & 0xFF00) | u16(f)
+
+	return 4, nil
 }
