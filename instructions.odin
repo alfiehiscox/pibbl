@@ -261,7 +261,7 @@ execute_block_3_instruction :: #force_inline proc(
 	case 0xF0:
 		return execute_ldh_a_imm8(e, opcode) // ldh a, [imm8]
 	case 0xFA:
-		return execute_a_imm16(e, opcode) // ld a, [imm16]
+		return execute_ld_a_imm16(e, opcode) // ld a, [imm16]
 	case:
 		return 0, .Instruction_Not_Emulated
 	}
@@ -1149,7 +1149,12 @@ execute_ldh_a_imm8 :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	dest := access(e, e.pc) or_return
+	e.pc += 1
+
+	next := access(e, 0xC000 + u16(dest)) or_return
+	e.af = (u16(next) << 8) | (e.af & 0x00FF)
+	return 3, nil
 }
 
 execute_ldh_a_c :: #force_inline proc(
@@ -1219,14 +1224,25 @@ execute_ldh_c_a :: #force_inline proc(
 	return 2, nil
 }
 
-execute_a_imm16 :: #force_inline proc(
+execute_ld_a_imm16 :: #force_inline proc(
 	e: ^Emulator,
 	opcode: byte,
 ) -> (
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+	dest := access_range(e, e.pc, e.pc + 2) or_return
+	defer delete(dest)
+
+	e.pc += 2 
+
+	addr, ok := endian.get_u16(dest, .Little)
+	if !ok do return 0, .Invalid_Instruction
+
+	value := access(e, addr) or_return
+	e.af = (u16(value) << 8) | (e.af & 0x00FF)
+	
+	return 4, nil
 }
 
 // ===============================================================

@@ -2314,13 +2314,41 @@ test_ld_a_c :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_ld_a_imm8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+test_ldh_a_imm8 :: proc(t: ^testing.T) {
+	e: Emulator
+	cycles: int
+	err: Emulator_Error
+
+	e.pc = 0xC002 
+	write(&e, e.pc, 0x12)
+	write(&e, 0xC012, 0xAC)
+
+	cycles, err = execute_block_3_instruction(&e, 0xF0)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 0xC003)
+	a := (e.af & 0xFF00) >> 8
+	testing.expectf(t, a == 0xAC, "exp=AC got=%X", a)
 }
 
 @(test)
 test_ld_a_imm16 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	cycles: int
+	err: Emulator_Error
+
+	e.af = 0
+	e.pc = 0xC000
+	ok := endian.put_u16(e._wram[0:2], .Little, 0xC0AB)
+	testing.expect(t, ok)
+	write(&e, 0xC0AB, 0xAA)
+
+	cycles, err = execute_block_3_instruction(&e, 0xFA)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0xC002)
+	a := (e.af & 0xFF00) >> 8
+	testing.expectf(t, a == 0xAA, "exp=AA got=%X", a)
 }
 
 @(test)
