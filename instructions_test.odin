@@ -2297,7 +2297,20 @@ test_ld_imm16_a :: proc(t: ^testing.T) {
 
 @(test)
 test_ld_a_c :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator
+	cycles: int
+	err: Emulator_Error
+
+	e.pc = 2 
+	e.af = 0 
+	e.bc = 0x00AA
+	write(&e, 0xFFAA, 0x12)
+
+	cycles, err = execute_block_3_instruction(&e, 0xF2)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	a := (e.af & 0xFF00) >> 8
+	testing.expectf(t, a == 0x12, "exp=12 got=%X", a)
 }
 
 @(test)

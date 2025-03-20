@@ -1159,7 +1159,12 @@ execute_ldh_a_c :: #force_inline proc(
 	cycle: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+
+	c := e.bc & 0x00FF
+	value := access(e, 0xFF00 + c) or_return
+	e.af = (u16(value) << 8) | (e.af & 0x00FF)
+
+	return 2, nil
 }
 
 execute_ld_imm16_a :: #force_inline proc(
