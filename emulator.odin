@@ -39,8 +39,8 @@ Emulator :: struct {
 	Memory Regions:
 	- _rom : 16KB Bank 00            - 0000:3FFF
 	- _romN: 16KB Bank 01~NN         - 4000:7FFF
-	- _vram: 8KB Video Memory        - 8000:9FFF
-	- _rram: 8KB External Rom Ram    - A000:BFFF <In PPU>
+	- _vram: 8KB Video Memory        - 8000:9FFF <In PPU>
+	- _rram: 8KB External Rom Ram    - A000:BFFF 
 	- _wram: 8KB Working Memory      - C000:DFFF
 	- _oam : 160B Sprite Attr Table  - FE00:FE9F <In PPU>
 	- _io  : 127B i/o registres      - FF00:FF7F
@@ -75,6 +75,7 @@ Emulator :: struct {
 
 	// emulation helpers 
 	running: bool,
+	halted:  bool,
 }
 
 emulator_init :: proc(e: ^Emulator, rom: []byte) {
@@ -143,21 +144,28 @@ execute :: proc(e: ^Emulator) -> Emulator_Error {
 	e.running = true
 
 	for e.running {
-		cycles := 0
+		cycles := 0 
+
 		if should_interrupt(e) {
-			cycles, err := interrupt(e)
+			i_cycles, err := interrupt(e)
 			log.errorf("Error in Interrupt: %v\n", err)
 			if fatal_error(err) do return err
+			cycles += i_cycles
 		}
 
-		opcode, opcode_err := fetch_opcode(e)
-		log.errorf("Error in Fetch: %v\n", opcode_err)
-		if fatal_error(opcode_err) do return opcode_err
+		if !e.halted {
+			opcode, opcode_err := fetch_opcode(e)
+			log.errorf("Error in Fetch: %v\n", opcode_err)
+			if fatal_error(opcode_err) do return opcode_err
 
-		instr_cycles, execute_err := execute_instruction(e, opcode)
-		log.errorf("Error in Execute Instruction: %v\n", execute_err)
-		if fatal_error(execute_err) do return execute_err
-		cycles += instr_cycles
+			instr_cycles, execute_err := execute_instruction(e, opcode)
+			log.errorf("Error in Execute Instruction: %v\n", execute_err)
+			if fatal_error(execute_err) do return execute_err
+			cycles += instr_cycles
+		} else {
+			// TODO(alfie): need some extra handling of the HALT bug
+			cycles += 1
+		}
 
 		tick_err := tick_peripherals(e, cycles)
 		log.errorf("Error in Tick Peripherals: %v\n", tick_err)
@@ -168,11 +176,12 @@ execute :: proc(e: ^Emulator) -> Emulator_Error {
 }
 
 fetch_opcode :: proc(e: ^Emulator) -> (opcode: byte, err: Emulator_Error) {
-	opcode = access(e, e.sp) or_return
+	opcode = access(e, e.pc) or_return
 	e.pc += 1
 	return opcode, nil
 }
 
+// TODO(alfie): do i need to tick peripherals in m-cycles or t-cycles
 tick_peripherals :: proc(e: ^Emulator, mcycles: int) -> Emulator_Error {
 	unimplemented()
 }
@@ -473,7 +482,6 @@ will_add_overflow :: proc(a, b: $T) -> bool where intrinsics.type_is_integer(T) 
 will_add_h_overflow :: proc {
 	will_add_h_overflow_u8,
 	will_add_h_overflow_u16,
-	will_add_h_overflow_i16, 
 }
 
 will_add_h_overflow_u8 :: proc(a, b: u8) -> bool {
@@ -481,10 +489,6 @@ will_add_h_overflow_u8 :: proc(a, b: u8) -> bool {
 }
 
 will_add_h_overflow_u16 :: proc(a, b: u16) -> bool {
-	return (a & 0x0FFF) + (b & 0x0FFF) > 0x0FFF
-}
-
-will_add_h_overflow_i16 :: proc(a, b: i16) -> bool {
 	return (a & 0x0FFF) + (b & 0x0FFF) > 0x0FFF
 }
 

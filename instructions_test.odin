@@ -2362,9 +2362,10 @@ test_add_sp_imm8 :: proc(t: ^testing.T) {
 	e.sp = 0xFFF2
 	e.pc = 0xC000
 	write(&e, e.pc, 0x0F)
-	cycles, err = execute_block_3_instruction(&e, 0xF8)
+	cycles, err = execute_block_3_instruction(&e, 0xE8)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0xC001)
 	value := 0xFFF2 + 0x0F
 	testing.expect(t, e.sp == u16(value))
 	testing.expectf(t, e.af == FLAG_FULL_CARRY | FLAG_HALF_CARRY , "got=%b", e.af)
@@ -2375,29 +2376,113 @@ test_add_sp_imm8 :: proc(t: ^testing.T) {
 	e.pc = 0xC000
 	operand := ~u8(12) // -13
 	write(&e, e.pc, operand)
-	cycles, err = execute_block_3_instruction(&e, 0xF8)
+	cycles, err = execute_block_3_instruction(&e, 0xE8)
 	testing.expectf(t, err == nil, "err=%s", err)
 	testing.expect(t, cycles == 4)
+	testing.expect(t, e.pc == 0xC001)
 	testing.expectf(t, e.sp == (0xFFFE - 13), "exp=%x got=%x", (0xFFFE - 13), e.sp)
 	testing.expectf(t, e.af == FLAG_HALF_CARRY | FLAG_FULL_CARRY, "got=%b", e.af)
 }
 
 @(test)
 test_ld_hl_sp_imm8 :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator 
+	cycles: int 
+	err: Emulator_Error
+
+	e.af = 0 
+	e.hl = 0 
+	e.sp = 0xFFF2
+	e.pc = 0xC000
+	write(&e, e.pc, 0x0F)
+	cycles, err = execute_block_3_instruction(&e, 0xF8)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 0xC001)
+	value := 0xFFF2 + 0x0F
+	testing.expect(t, e.hl == u16(value))
+	testing.expectf(t, e.af == FLAG_FULL_CARRY | FLAG_HALF_CARRY , "got=%b", e.af)
+
+	e.af = 0 
+	e.hl = 0 
+	e.sp = 0xFFFE
+	e.pc = 0xC000
+	operand := ~u8(12) // -13
+	write(&e, e.pc, operand)
+	cycles, err = execute_block_3_instruction(&e, 0xF8)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.pc == 0xC001)
+	testing.expectf(t, e.hl == (0xFFFE - 13), "exp=%x got=%x", (0xFFFE - 13), e.hl)
+	testing.expectf(t, e.af == FLAG_HALF_CARRY | FLAG_FULL_CARRY, "got=%b", e.af)
 }
 
 @(test)
 test_ld_sp_hl :: proc(t: ^testing.T) {
-	testing.fail(t)
+	e: Emulator 
+	cycles: int 
+	err: Emulator_Error
+
+	e.hl = 0xFFF2
+	e.sp = 0xFFFE
+	e.pc = 0xC000
+	cycles, err = execute_block_3_instruction(&e, 0xF9)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e.pc == 0xC000)
+	testing.expect(t, e.sp == 0xFFF2)
+}
+
+@(test) 
+test_ei_then_di :: proc(t: ^testing.T) {
+	e: Emulator 
+	cycles: int 
+	err: Emulator_Error
+
+	e._ime = true 
+	e.pc = 0xC000 
+	write(&e, e.pc, 0xF3) // di instruction 
+
+	cycles, err = execute_block_3_instruction(&e, 0xFB) // ei instruction
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 2)
+	testing.expect(t, e._ime == true)
+	testing.expect(t, e.pc == 0xC001)
 }
 
 @(test)
-test_di :: proc(t: ^testing.T) {
-	testing.fail(t)
+test_ei_then_ld_sp_hl :: proc(t: ^testing.T) {
+	e: Emulator 
+	cycles: int 
+	err: Emulator_Error
+
+	e._ime = false
+	e.pc = 0xC000 
+	e.sp = 0xFFFE
+	e.hl = 0xFFF0
+	write(&e, e.pc, 0xF9) // ld sp, hl
+
+	cycles, err = execute_block_3_instruction(&e, 0xFB)
+	testing.expectf(t, err == nil, "err=%s", err)
+	testing.expect(t, cycles == 3)
+	testing.expect(t, e.sp == 0xFFF0)
+	testing.expect(t, e.pc == 0xC001)
+	testing.expect(t, e._ime == true )
 }
 
-@(test)
-test_ei :: proc(t: ^testing.T) {
-	testing.fail(t)
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

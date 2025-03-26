@@ -262,8 +262,24 @@ execute_block_3_instruction :: #force_inline proc(
 		return execute_ldh_a_imm8(e, opcode) // ldh a, [imm8]
 	case 0xFA:
 		return execute_ld_a_imm16(e, opcode) // ld a, [imm16]
-	case 0xF8:
+	case 0xE8:
 		return execute_add_sp_imm8(e, opcode) // add sp, imm8
+	case 0xF8:
+		return execute_ld_hl_sp_imm8(e, opcode) // load hl, sp + imm8
+	case 0xF9:
+		// ld_sp_hl 
+		e.sp = e.hl
+		return 2, nil
+	case 0xF3:
+		// di
+		e._ime = false
+		return 1, nil
+	case 0xFB:
+		// ei 
+		opcode := fetch_opcode(e) or_return
+		cycles := execute_instruction(e, opcode) or_return
+		e._ime = true 
+		return cycles + 1, nil
 	case:
 		return 0, .Instruction_Not_Emulated
 	}
@@ -477,6 +493,7 @@ execute_inc_r16 :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
+
 	switch (opcode & 0x30) >> 4 {
 	case 0:
 		e.bc += 1 // inc bc
@@ -893,7 +910,22 @@ execute_halt :: #force_inline proc(
 	cycles: int,
 	err: Emulator_Error,
 ) {
-	unimplemented()
+
+
+	/*
+	   I'M NOT SURE HOW THIS WORKS YET!
+	*/
+	if (e._ime) {
+		e.pc -= 1
+		return 1, nil
+	} else {
+		if e._ie & e._if > 0 {
+			// There are pending interupts 
+		} else {
+			e.pc -= 1
+			return 1, nil
+		}
+	}
 }
 
 
@@ -2097,6 +2129,7 @@ execute_add_sp_imm8 :: #force_inline proc(
 	operand_byte := access(e, e.pc) or_return
 	operand := i16(i8(operand_byte))
 
+	e.pc += 1
 	f := 0 
 
 	if will_add_overflow(e.sp, u16(operand)) do f |= FLAG_FULL_CARRY
@@ -2107,3 +2140,40 @@ execute_add_sp_imm8 :: #force_inline proc(
 
 	return 4, nil
 }
+
+execute_ld_hl_sp_imm8 :: #force_inline proc(
+	e: ^Emulator, 
+	opcode: byte
+) -> (
+	cycles: int, 
+	err: Emulator_Error,
+) {
+	execute_add_sp_imm8(e, opcode) or_return
+	e.hl = e.sp
+	return 3, nil
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
